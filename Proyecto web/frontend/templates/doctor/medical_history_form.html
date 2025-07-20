@@ -1,0 +1,376 @@
+{% extends "base.html" %}
+
+{% block title %}
+{% if is_edit %}Editar Historia Clínica{% else %}Nueva Historia Clínica{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Sidebar -->
+        <nav class="col-md-3 col-lg-2 d-md-block bg-light sidebar collapse">
+            {% include 'shared/sidebar.html' %}
+        </nav>
+
+        <!-- Main content -->
+        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                <h1 class="h2">
+                    <i class="fas fa-file-medical-alt me-2"></i>
+                    {% if is_edit %}Editar Historia Clínica{% else %}Nueva Historia Clínica{% endif %}
+                </h1>
+                <div class="btn-toolbar mb-2 mb-md-0">
+                    <div class="btn-group me-2">
+                        <a href="{{ url_for('doctor.clinical_histories') }}" class="btn btn-sm btn-outline-secondary">
+                            <i class="fas fa-arrow-left me-1"></i>
+                            Volver
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Información del paciente -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card bg-light">
+                        <div class="card-body">
+                            <h6 class="card-title mb-0">
+                                <i class="fas fa-user me-2"></i>
+                                Paciente: <strong>{{ patient.full_name }}</strong>
+                                <span class="text-muted ms-2">DNI: {{ patient.dni }}</span>
+                                <span class="text-muted ms-2">Edad: {{ patient.age }} años</span>
+                            </h6>
+                            {% if patient.is_new_patient() %}
+                            <div class="mt-2">
+                                <span class="badge bg-primary">
+                                    <i class="fas fa-plus-circle me-1"></i>
+                                    Paciente Nuevo
+                                </span>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Formulario de Historia Clínica -->
+            <form method="POST" id="medicalHistoryForm">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <input type="hidden" name="patient_id" value="{{ patient.id }}"/>
+                
+                <!-- Datos de Identificación (Header) -->
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-id-card me-2"></i>
+                                    Datos de Identificación
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">
+                                                <i class="fas fa-hashtag me-1"></i>
+                                                Número de Historia Clínica
+                                            </label>
+                                            <input type="text" class="form-control" 
+                                                   value="{{ medical_history.medical_history_number if medical_history else 'Se generará automáticamente' }}" 
+                                                   readonly>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">
+                                                <i class="fas fa-calendar me-1"></i>
+                                                Fecha de Apertura
+                                            </label>
+                                            <input type="date" class="form-control" 
+                                                   value="{{ medical_history.opening_date.strftime('%Y-%m-%d') if medical_history and medical_history.opening_date else current_datetime.strftime('%Y-%m-%d') }}" 
+                                                   readonly>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Datos del paciente (solo lectura) -->
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Nombres y Apellidos</label>
+                                            <input type="text" class="form-control" value="{{ patient.full_name }}" readonly>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="mb-3">
+                                            <label class="form-label">DNI</label>
+                                            <input type="text" class="form-control" value="{{ patient.dni }}" readonly>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="mb-3">
+                                            <label class="form-label">Edad</label>
+                                            <input type="text" class="form-control" value="{{ patient.age }} años" readonly>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label class="form-label">Fecha de Nacimiento</label>
+                                            <input type="date" class="form-control" value="{{ patient.birth_date }}" readonly>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label class="form-label">Sexo</label>
+                                            <input type="text" class="form-control" value="{{ patient.gender }}" readonly>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label class="form-label">Teléfono</label>
+                                            <input type="text" class="form-control" value="{{ patient.phone or 'No especificado' }}" readonly>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-12">
+                                        <div class="mb-3">
+                                            <label class="form-label">Dirección</label>
+                                            <input type="text" class="form-control" value="{{ patient.address or 'No especificado' }}" readonly>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Contacto de emergencia -->
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label class="form-label">Contacto de Emergencia</label>
+                                            <input type="text" class="form-control" value="{{ patient.emergency_contact_name or 'No especificado' }}" readonly>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label class="form-label">Teléfono de Emergencia</label>
+                                            <input type="text" class="form-control" value="{{ patient.emergency_contact_phone or 'No especificado' }}" readonly>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label class="form-label">Relación</label>
+                                            <input type="text" class="form-control" value="{{ patient.emergency_contact_relationship or 'No especificado' }}" readonly>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Antecedentes -->
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-history me-2"></i>
+                                    Antecedentes Médicos
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <!-- Antecedentes personales -->
+                                <div class="mb-3">
+                                    <label for="personal_history" class="form-label">
+                                        <i class="fas fa-user-md me-1"></i>
+                                        Antecedentes Personales
+                                    </label>
+                                    <textarea class="form-control" id="personal_history" name="personal_history" rows="4" 
+                                              placeholder="Enfermedades previas, cirugías, alergias, medicamentos...">{{ medical_history.personal_history if medical_history else '' }}</textarea>
+                                    <div class="form-text">
+                                        Incluya: enfermedades previas, cirugías, alergias, medicamentos crónicos
+                                    </div>
+                                </div>
+
+                                <!-- Antecedentes familiares -->
+                                <div class="mb-3">
+                                    <label for="family_history" class="form-label">
+                                        <i class="fas fa-users me-1"></i>
+                                        Antecedentes Familiares
+                                    </label>
+                                    <textarea class="form-control" id="family_history" name="family_history" rows="4" 
+                                              placeholder="Enfermedades hereditarias relevantes...">{{ medical_history.family_history if medical_history else '' }}</textarea>
+                                    <div class="form-text">
+                                        Incluya: enfermedades hereditarias relevantes de familiares directos
+                                    </div>
+                                </div>
+
+                                <!-- Alergias específicas -->
+                                <div class="mb-3">
+                                    <label for="allergies" class="form-label">
+                                        <i class="fas fa-exclamation-triangle me-1"></i>
+                                        Alergias Específicas
+                                    </label>
+                                    <textarea class="form-control" id="allergies" name="allergies" rows="3" 
+                                              placeholder="Alergias a medicamentos, alimentos, sustancias...">{{ medical_history.allergies if medical_history else '' }}</textarea>
+                                    <div class="form-text">
+                                        Especifique alergias a medicamentos, alimentos, sustancias químicas, etc.
+                                    </div>
+                                </div>
+
+                                <!-- Medicamentos crónicos -->
+                                <div class="mb-3">
+                                    <label for="chronic_medications" class="form-label">
+                                        <i class="fas fa-pills me-1"></i>
+                                        Medicamentos Crónicos
+                                    </label>
+                                    <textarea class="form-control" id="chronic_medications" name="chronic_medications" rows="3" 
+                                              placeholder="Medicamentos que toma regularmente...">{{ medical_history.chronic_medications if medical_history else '' }}</textarea>
+                                    <div class="form-text">
+                                        Medicamentos que el paciente toma de forma regular o crónica
+                                    </div>
+                                </div>
+
+                                <!-- Historia quirúrgica -->
+                                <div class="mb-3">
+                                    <label for="surgical_history" class="form-label">
+                                        <i class="fas fa-cut me-1"></i>
+                                        Historia Quirúrgica
+                                    </label>
+                                    <textarea class="form-control" id="surgical_history" name="surgical_history" rows="3" 
+                                              placeholder="Cirugías previas, fechas, complicaciones...">{{ medical_history.surgical_history if medical_history else '' }}</textarea>
+                                    <div class="form-text">
+                                        Incluya cirugías previas, fechas aproximadas y complicaciones
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Hábitos -->
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-heartbeat me-2"></i>
+                                    Hábitos y Estilo de Vida
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="smoking_habits" class="form-label">
+                                                <i class="fas fa-smoking me-1"></i>
+                                                Hábitos de Tabaco
+                                            </label>
+                                            <textarea class="form-control" id="smoking_habits" name="smoking_habits" rows="3" 
+                                                      placeholder="Frecuencia, cantidad, años fumando...">{{ medical_history.smoking_habits if medical_history else '' }}</textarea>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="alcohol_habits" class="form-label">
+                                                <i class="fas fa-wine-bottle me-1"></i>
+                                                Hábitos de Alcohol
+                                            </label>
+                                            <textarea class="form-control" id="alcohol_habits" name="alcohol_habits" rows="3" 
+                                                      placeholder="Frecuencia, cantidad, tipo de bebidas...">{{ medical_history.alcohol_habits if medical_history else '' }}</textarea>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="drug_habits" class="form-label">
+                                                <i class="fas fa-prescription-bottle me-1"></i>
+                                                Uso de Drogas
+                                            </label>
+                                            <textarea class="form-control" id="drug_habits" name="drug_habits" rows="3" 
+                                                      placeholder="Tipo, frecuencia, vía de administración...">{{ medical_history.drug_habits if medical_history else '' }}</textarea>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="physical_activity" class="form-label">
+                                                <i class="fas fa-running me-1"></i>
+                                                Actividad Física
+                                            </label>
+                                            <textarea class="form-control" id="physical_activity" name="physical_activity" rows="3" 
+                                                      placeholder="Tipo, frecuencia, duración...">{{ medical_history.physical_activity if medical_history else '' }}</textarea>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Botones de acción -->
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between">
+                                    <a href="{{ url_for('doctor.clinical_histories') }}" class="btn btn-secondary">
+                                        <i class="fas fa-times me-1"></i>
+                                        Cancelar
+                                    </a>
+                                    <div>
+                                        <button type="submit" name="action" value="save" class="btn btn-primary">
+                                            <i class="fas fa-save me-1"></i>
+                                            Guardar Historia Clínica
+                                        </button>
+                                        <button type="submit" name="action" value="save_and_consult" class="btn btn-success ms-2">
+                                            <i class="fas fa-plus me-1"></i>
+                                            Guardar y Continuar a Consulta
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </main>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('medicalHistoryForm');
+    
+    // Validación del formulario
+    form.addEventListener('submit', function(e) {
+        let isValid = true;
+        let errorMessage = '';
+        
+        // Validar que al menos un campo de antecedentes esté lleno
+        const personalHistory = document.getElementById('personal_history').value.trim();
+        const familyHistory = document.getElementById('family_history').value.trim();
+        const allergies = document.getElementById('allergies').value.trim();
+        
+        if (!personalHistory && !familyHistory && !allergies) {
+            isValid = false;
+            errorMessage = 'Debe completar al menos un campo de antecedentes médicos.';
+        }
+        
+        if (!isValid) {
+            e.preventDefault();
+            alert(errorMessage);
+        }
+    });
+    
+    // Auto-guardado cada 30 segundos
+    setInterval(function() {
+        // Implementar auto-guardado si es necesario
+    }, 30000);
+});
+</script>
+{% endblock %}

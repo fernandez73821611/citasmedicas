@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard Enfermería - Sistema de Gestión Médica{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">
+        <i class="bi bi-heart"></i> Dashboard Enfermería
+    </h1>
+    <div class="text-muted">
+        <i class="bi bi-person-badge"></i> {{ current_user.full_name }}
+    </div>
+</div>
+
+<!-- Bienvenida personalizada -->
+<div class="alert alert-success d-flex align-items-center mb-4" role="alert">
+    <i class="bi bi-shield-check me-3" style="font-size: 1.5rem;"></i>
+    <div>
+        <h5 class="alert-heading mb-1">¡Bienvenida, Enfermera {{ current_user.first_name }}!</h5>
+        <p class="mb-0">Tienes {{ today_appointments_count }} pacientes pendientes de triage hoy.</p>
+    </div>
+</div>
+
+<!-- Métricas principales -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card text-white bg-warning">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <div class="card-title h3 mb-0">{{ pending_triages }}</div>
+                        <p class="card-text">Pendientes Triage</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-clock-history" style="font-size: 2rem;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card text-white bg-success">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <div class="card-title h3 mb-0">{{ completed_today }}</div>
+                        <p class="card-text">Completados Hoy</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-check-circle" style="font-size: 2rem;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card text-white bg-info">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <div class="card-title h3 mb-0">{{ patients_this_month }}</div>
+                        <p class="card-text">Pacientes del Mes</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-people" style="font-size: 2rem;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card text-white bg-primary">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <div class="card-title h3 mb-0">{{ today_appointments_count }}</div>
+                        <p class="card-text">Citas de Hoy</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-calendar-check" style="font-size: 2rem;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Contenido principal -->
+<div class="row">
+    <!-- Citas pendientes de triage -->
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="bi bi-list-check"></i> Pacientes Pendientes de Triage
+                </h5>
+                <span class="badge bg-warning">{{ today_appointments_count }} pendientes</span>
+            </div>
+            <div class="card-body">
+                {% if today_appointments %}
+                    <div class="list-group">
+                        {% for appointment in today_appointments %}
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-1">
+                                    <i class="bi bi-person"></i> {{ appointment.patient.full_name }}
+                                </h6>
+                                <p class="mb-1">
+                                    <strong>Hora:</strong> {{ appointment.date_time.strftime('%H:%M') }}
+                                    <span class="ms-3"><strong>Médico:</strong> Dr. {{ appointment.doctor.full_name }}</span>
+                                </p>
+                                <small class="text-muted">
+                                    <i class="bi bi-calendar"></i> {{ appointment.date_time.strftime('%d/%m/%Y') }}
+                                    {% if appointment.reason %}
+                                        <span class="ms-3"><i class="bi bi-chat-text"></i> {{ appointment.reason[:50] }}{% if appointment.reason|length > 50 %}...{% endif %}</span>
+                                    {% endif %}
+                                </small>
+                            </div>
+                            <div>
+                                {% if appointment.status == 'scheduled' %}
+                                    <button class="btn btn-success btn-sm" onclick="startTriage({{ appointment.id }})">
+                                        <i class="bi bi-play"></i> Iniciar Triage
+                                    </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="bi bi-check-circle text-success" style="font-size: 3rem;"></i>
+                        <h5 class="text-muted mt-3">No hay pacientes pendientes de triage</h5>
+                        <p class="text-muted">¡Excelente trabajo! Todos los pacientes han sido evaluados.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Información del turno -->
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="bi bi-clock"></i> Información del Turno
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="small">
+                    <p class="mb-2"><strong>Turno:</strong> Mañana (07:00 - 15:00)</p>
+                    <p class="mb-2"><strong>Hora actual:</strong> <span id="currentTime"></span></p>
+                    <p class="mb-0"><strong>Estado:</strong> <span class="badge bg-success">Activo</span></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function startTriage(appointmentId) {
+    window.location.href = `/nurse/triage/appointment/${appointmentId}`;
+}
+
+// Actualizar hora actual
+function updateTime() {
+    const now = new Date();
+    const timeString = now.toLocaleTimeString('es-ES');
+    const timeElement = document.getElementById('currentTime');
+    if (timeElement) {
+        timeElement.textContent = timeString;
+    }
+}
+
+// Actualizar cada segundo
+setInterval(updateTime, 1000);
+updateTime();
+</script>
+{% endblock %}

@@ -1,0 +1,236 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        {% include 'shared/sidebar.html' %}
+        
+        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                <h1 class="h2">{{ title }}</h1>
+                <div class="btn-toolbar mb-2 mb-md-0">
+                    <div class="btn-group me-2">
+                        <a href="{{ url_for('admin.new_patient') }}" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-person-plus"></i> Nuevo Paciente
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Estadísticas rápidas -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card bg-primary text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4 class="card-title">{{ patients|length }}</h4>
+                                    <p class="card-text">Total Pacientes</p>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="bi bi-people-fill fs-1"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>                                <div class="col-md-3">
+                    <div class="card bg-success text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4 class="card-title">{{ patients|length }}</h4>
+                                    <p class="card-text">Pacientes Registrados</p>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="bi bi-person-check-fill fs-1"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-info text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4 class="card-title">{{ patients|selectattr('gender', 'equalto', 'Femenino')|list|length }}</h4>
+                                    <p class="card-text">Pacientes Femeninas</p>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="bi bi-gender-female fs-1"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-warning text-dark">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4 class="card-title">{{ patients|selectattr('gender', 'equalto', 'Masculino')|list|length }}</h4>
+                                    <p class="card-text">Pacientes Masculinos</p>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="bi bi-gender-male fs-1"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filtros y búsqueda -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Filtros de Búsqueda</h5>
+                </div>
+                <div class="card-body">
+                    <form method="GET" class="row g-3">
+                        <div class="col-md-4">
+                            <label for="search" class="form-label">Buscar por nombre o documento</label>
+                            <input type="text" class="form-control" id="search" name="search" 
+                                   value="{{ request.args.get('search', '') }}" 
+                                   placeholder="Nombre o documento...">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="gender" class="form-label">Género</label>
+                            <select class="form-select" id="gender" name="gender">
+                                <option value="">Todos</option>
+                                <option value="Masculino" {{ 'selected' if request.args.get('gender') == 'Masculino' }}>Masculino</option>
+                                <option value="Femenino" {{ 'selected' if request.args.get('gender') == 'Femenino' }}>Femenino</option>
+                                <option value="Otro" {{ 'selected' if request.args.get('gender') == 'Otro' }}>Otro</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="status" class="form-label">Estado</label>
+                            <select class="form-select" id="status" name="status">
+                                <option value="">Todos</option>
+                                <option value="active" {{ 'selected' if request.args.get('status') == 'active' }}>Activos</option>
+                                <option value="inactive" {{ 'selected' if request.args.get('status') == 'inactive' }}>Inactivos</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label d-block">&nbsp;</label>
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="bi bi-search"></i> Buscar
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Tabla de pacientes -->
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">Lista de Pacientes</h5>
+                    <small class="text-muted">{{ patients|length }} pacientes registrados</small>
+                </div>
+                <div class="card-body">
+                    {% if patients %}
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>Documento</th>
+                                        <th>Nombre Completo</th>
+                                        <th>Género</th>
+                                        <th>Teléfono</th>
+                                        <th>Email</th>
+                                        <th>Fecha Registro</th>
+                                        <th>Estado</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for patient in patients %}
+                                    <tr>                                        <td>
+                                            <strong>{{ patient.dni }}</strong>
+                                            <br>
+                                            <small class="text-muted">DNI</small>
+                                        </td>
+                                        <td>
+                                            <strong>{{ patient.first_name }} {{ patient.last_name }}</strong>
+                                            <br>
+                                            <small class="text-muted">{{ patient.birth_date|dateformat }}</small>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-{{ 'primary' if patient.gender == 'Masculino' else 'danger' if patient.gender == 'Femenino' else 'secondary' }}">
+                                                {{ patient.gender }}
+                                            </span>
+                                        </td>
+                                        <td>{{ patient.phone or 'No registrado' }}</td>
+                                        <td>{{ patient.email or 'No registrado' }}</td>
+                                        <td>{{ patient.created_at|dateformat }}</td>                                        <td>
+                                            <span class="badge bg-success">Activo</span>
+                                        </td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm" role="group">
+                                                <a href="{{ url_for('admin.patient_detail', id=patient.id) }}" 
+                                                   class="btn btn-outline-info" title="Ver detalles">
+                                                    <i class="bi bi-eye"></i>
+                                                </a>
+                                                <a href="{{ url_for('admin.edit_patient', id=patient.id) }}" 
+                                                   class="btn btn-outline-warning" title="Editar">
+                                                    <i class="bi bi-pencil"></i>
+                                                </a>
+                                                {% if current_user.role == 'admin' %}
+                                                <button type="button" class="btn btn-outline-danger" 
+                                                        title="Eliminar" onclick="confirmDelete({{ patient.id }})">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="bi bi-person-x display-1 text-muted"></i>
+                            <h4 class="text-muted mt-3">No hay pacientes registrados</h4>
+                            <p class="text-muted">Comienza agregando el primer paciente al sistema.</p>
+                            <a href="{{ url_for('admin.new_patient') }}" class="btn btn-primary">
+                                <i class="bi bi-person-plus"></i> Registrar Primer Paciente
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+
+<!-- Modal de confirmación para eliminar -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirmar Eliminación</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                ¿Está seguro de que desea eliminar este paciente? Esta acción no se puede deshacer.
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Eliminar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function confirmDelete(patientId) {
+    const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
+    document.getElementById('confirmDeleteBtn').onclick = function() {
+        window.location.href = `/admin/patients/${patientId}/delete`;
+    };
+    modal.show();
+}
+</script>
+{% endblock %}

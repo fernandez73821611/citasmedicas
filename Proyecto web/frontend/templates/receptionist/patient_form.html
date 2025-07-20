@@ -1,0 +1,605 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">
+        {% if patient %}
+            Editar Paciente: {{ patient.full_name }}
+        {% else %}
+            Registrar Nuevo Paciente
+        {% endif %}
+    </h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <a href="{{ url_for('receptionist.patients') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Volver a Lista
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-person-badge"></i>
+                    {% if patient %}
+                        Datos del Paciente
+                    {% else %}
+                        Información del Nuevo Paciente
+                    {% endif %}
+                </h5>
+            </div>            <div class="card-body">
+                <form method="POST" novalidate>
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <!-- Información Personal -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="first_name" class="form-label">Nombres *</label>
+                            <input type="text" class="form-control" id="first_name" name="first_name" 
+                                   value="{{ patient.first_name if patient else '' }}" 
+                                   pattern="[A-Za-zÁÉÍÓÚáéíóúÑñ\s]{2,50}" 
+                                   title="Solo letras y espacios, entre 2 y 50 caracteres"
+                                   required>
+                            <div class="form-text">Solo letras y espacios</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="last_name" class="form-label">Apellidos *</label>
+                            <input type="text" class="form-control" id="last_name" name="last_name" 
+                                   value="{{ patient.last_name if patient else '' }}" 
+                                   pattern="[A-Za-zÁÉÍÓÚáéíóúÑñ\s]{2,50}" 
+                                   title="Solo letras y espacios, entre 2 y 50 caracteres"
+                                   required>
+                            <div class="form-text">Solo letras y espacios</div>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="dni" class="form-label">DNI *</label>
+                            <input type="text" class="form-control" id="dni" name="dni" 
+                                   value="{{ patient.dni if patient else '' }}" 
+                                   pattern="[0-9]{8}" maxlength="8" 
+                                   title="Debe contener exactamente 8 dígitos"
+                                   required>
+                            <div class="form-text">Ingrese 8 dígitos</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="birth_date" class="form-label">Fecha de Nacimiento *</label>
+                            <input type="date" class="form-control" id="birth_date" name="birth_date" 
+                                   value="{{ patient.birth_date if patient else '' }}" 
+                                   title="La fecha debe ser anterior a hoy"
+                                   required>
+                            <div class="form-text">Fecha de nacimiento del paciente</div>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="gender" class="form-label">Género *</label>
+                            <select class="form-select" id="gender" name="gender" required>
+                                <option value="">Seleccionar...</option>
+                                <option value="M" {{ 'selected' if patient and patient.gender == 'M' else '' }}>Masculino</option>
+                                <option value="F" {{ 'selected' if patient and patient.gender == 'F' else '' }}>Femenino</option>
+                                <option value="Otro" {{ 'selected' if patient and patient.gender == 'Otro' else '' }}>Otro</option>
+                            </select>
+                            <div class="form-text">Seleccione el género del paciente</div>
+                        </div>
+                        <div class="col-md-6">
+                            <!-- Campo eliminado: Tipo de Sangre se manejará en Triage -->
+                        </div>
+                    </div>
+
+                    <!-- Información de Contacto -->
+                    <h6 class="border-bottom pb-2 mb-3 text-muted">Información de Contacto</h6>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="phone" class="form-label">Teléfono</label>
+                            <input type="tel" class="form-control" id="phone" name="phone" 
+                                   value="{{ patient.phone if patient else '' }}" 
+                                   pattern="[0-9]{9}" maxlength="9"
+                                   title="Debe contener exactamente 9 dígitos">
+                            <div class="form-text">Número celular de 9 dígitos (opcional)</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="email" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="email" name="email" 
+                                   value="{{ patient.email if patient else '' }}"
+                                   pattern="[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$"
+                                   title="Ingrese un email válido">
+                            <div class="form-text">Email válido (opcional)</div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="address" class="form-label">Dirección</label>
+                        <textarea class="form-control" id="address" name="address" rows="2" 
+                                  maxlength="200" minlength="10"
+                                  title="Dirección entre 10 y 200 caracteres">{{ patient.address if patient else '' }}</textarea>
+                        <div class="form-text">Dirección domiciliaria (opcional, mínimo 10 caracteres, máximo 200)</div>
+                    </div>
+
+                    <!-- Información de Apoderado/Tutor Legal (solo para menores de edad) -->
+                    <div id="guardian-section" style="display: none;">
+                        <h6 class="border-bottom pb-2 mb-3 text-warning">
+                            <i class="bi bi-shield-check"></i> Apoderado/Tutor Legal (Menor de Edad)
+                        </h6>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="guardian_name" class="form-label">Nombre del Apoderado *</label>
+                                <input type="text" class="form-control" id="guardian_name" name="guardian_name" 
+                                       value="{{ patient.guardian_name if patient else '' }}"
+                                       pattern="[A-Za-zÁÉÍÓÚáéíóúÑñ\s]{2,100}"
+                                       title="Solo letras y espacios, entre 2 y 100 caracteres">
+                                <div class="form-text">Nombre completo del apoderado</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="guardian_dni" class="form-label">DNI del Apoderado *</label>
+                                <input type="text" class="form-control" id="guardian_dni" name="guardian_dni" 
+                                       value="{{ patient.guardian_dni if patient else '' }}" 
+                                       pattern="[0-9]{8}" maxlength="8"
+                                       title="Debe contener exactamente 8 dígitos">
+                                <div class="form-text">DNI de 8 dígitos</div>
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="guardian_phone" class="form-label">Teléfono del Apoderado *</label>
+                                <input type="tel" class="form-control" id="guardian_phone" name="guardian_phone" 
+                                       value="{{ patient.guardian_phone if patient else '' }}" 
+                                       pattern="[0-9]{9}" maxlength="9"
+                                       title="Debe contener exactamente 9 dígitos">
+                                <div class="form-text">Número celular de 9 dígitos</div>
+                            </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="guardian_relationship" class="form-label">Parentesco *</label>
+                                <select class="form-select" id="guardian_relationship" name="guardian_relationship">
+                                    <option value="">Seleccionar...</option>
+                                    <option value="Padre" {{ 'selected' if patient and patient.guardian_relationship == 'Padre' else '' }}>Padre</option>
+                                    <option value="Madre" {{ 'selected' if patient and patient.guardian_relationship == 'Madre' else '' }}>Madre</option>
+                                    <option value="Abuelo/Abuela" {{ 'selected' if patient and patient.guardian_relationship == 'Abuelo/Abuela' else '' }}>Abuelo/Abuela</option>
+                                    <option value="Tío/Tía" {{ 'selected' if patient and patient.guardian_relationship == 'Tío/Tía' else '' }}>Tío/Tía</option>
+                                    <option value="Tutor Legal" {{ 'selected' if patient and patient.guardian_relationship == 'Tutor Legal' else '' }}>Tutor Legal</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Contacto de Emergencia -->
+                    <h6 class="border-bottom pb-2 mb-3 text-muted">Contacto de Emergencia</h6>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="emergency_contact_name" class="form-label">Nombre del Contacto</label>
+                            <input type="text" class="form-control" id="emergency_contact_name" name="emergency_contact_name" 
+                                   value="{{ patient.emergency_contact_name if patient else '' }}"
+                                   pattern="[A-Za-zÁÉÍÓÚáéíóúÑñ\s]{2,100}"
+                                   title="Solo letras y espacios, entre 2 y 100 caracteres">
+                            <div class="form-text">Nombre completo del contacto de emergencia</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="emergency_contact_phone" class="form-label">Teléfono del Contacto</label>
+                            <input type="tel" class="form-control" id="emergency_contact_phone" name="emergency_contact_phone" 
+                                   value="{{ patient.emergency_contact_phone if patient else '' }}" 
+                                   pattern="[0-9]{9}" maxlength="9"
+                                   title="Debe contener exactamente 9 dígitos">
+                            <div class="form-text">Número celular de 9 dígitos</div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="emergency_contact_relationship" class="form-label">Relación</label>
+                        <select class="form-select" id="emergency_contact_relationship" name="emergency_contact_relationship">
+                            <option value="">Seleccionar...</option>
+                            <option value="Padre/Madre" {{ 'selected' if patient and patient.emergency_contact_relationship == 'Padre/Madre' else '' }}>Padre/Madre</option>
+                            <option value="Hijo/Hija" {{ 'selected' if patient and patient.emergency_contact_relationship == 'Hijo/Hija' else '' }}>Hijo/Hija</option>
+                            <option value="Esposo/Esposa" {{ 'selected' if patient and patient.emergency_contact_relationship == 'Esposo/Esposa' else '' }}>Esposo/Esposa</option>
+                            <option value="Hermano/Hermana" {{ 'selected' if patient and patient.emergency_contact_relationship == 'Hermano/Hermana' else '' }}>Hermano/Hermana</option>
+                            <option value="Amigo/Amiga" {{ 'selected' if patient and patient.emergency_contact_relationship == 'Amigo/Amiga' else '' }}>Amigo/Amiga</option>
+                            <option value="Otro" {{ 'selected' if patient and patient.emergency_contact_relationship == 'Otro' else '' }}>Otro</option>
+                        </select>
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2">
+                        <a href="{{ url_for('receptionist.patients') }}" class="btn btn-secondary">
+                            <i class="bi bi-x-circle"></i> Cancelar
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle"></i>
+                            {% if patient %}
+                                Actualizar Paciente
+                            {% else %}
+                                Registrar Paciente
+                            {% endif %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Panel lateral con información adicional -->
+    <div class="col-md-4">
+        {% if patient %}
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">Información del Registro</h6>
+            </div>
+            <div class="card-body">
+                <p><strong>ID:</strong> {{ patient.id }}</p>                <p><strong>Registrado:</strong> {{ patient.created_at.strftime('%d/%m/%Y %H:%M') }}</p>
+                <p><strong>Última Actualización:</strong> {{ patient.updated_at.strftime('%d/%m/%Y %H:%M') }}</p>
+                <p><strong>Edad:</strong> {{ patient.age }} años</p>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="mb-0">Información Importante</h6>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled">
+                    <li><i class="bi bi-info-circle text-info"></i> Los campos marcados con * son obligatorios</li>
+                    <li><i class="bi bi-shield-check text-success"></i> Toda la información se mantiene confidencial</li>
+                    <li><i class="bi bi-telephone text-warning"></i> El contacto de emergencia es muy importante</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Validación del formulario
+document.addEventListener('DOMContentLoaded', function() {
+    // Establecer fecha máxima para el campo de fecha de nacimiento
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
+    const maxDate = yesterday.toISOString().split('T')[0];
+    document.getElementById('birth_date').setAttribute('max', maxDate);
+    
+    const form = document.querySelector('form');
+    const dniInput = document.getElementById('dni');
+    const phoneInput = document.getElementById('phone');
+    const emergencyPhoneInput = document.getElementById('emergency_contact_phone');
+    const guardianPhoneInput = document.getElementById('guardian_phone');
+    const guardianDniInput = document.getElementById('guardian_dni');
+    const emailInput = document.getElementById('email');
+    const birthDateInput = document.getElementById('birth_date');
+    const addressInput = document.getElementById('address');
+    const firstNameInput = document.getElementById('first_name');
+    const lastNameInput = document.getElementById('last_name');
+    const genderSelect = document.getElementById('gender');
+    const emergencyContactNameInput = document.getElementById('emergency_contact_name');
+    const guardianNameInput = document.getElementById('guardian_name');
+    
+    // Validar solo números en DNI
+    dniInput.addEventListener('input', function() {
+        this.value = this.value.replace(/[^0-9]/g, '');
+        if (this.value.length > 8) {
+            this.value = this.value.slice(0, 8);
+        }
+        validateDNI();
+    });
+    
+    // Validar solo números en DNI del apoderado
+    guardianDniInput.addEventListener('input', function() {
+        this.value = this.value.replace(/[^0-9]/g, '');
+        if (this.value.length > 8) {
+            this.value = this.value.slice(0, 8);
+        }
+        validateGuardianDNI();
+    });
+    
+    // Validar solo números en teléfonos
+    phoneInput.addEventListener('input', function() {
+        this.value = this.value.replace(/[^0-9]/g, '');
+        if (this.value.length > 9) {
+            this.value = this.value.slice(0, 9);
+        }
+        validatePhone(this);
+    });
+    
+    emergencyPhoneInput.addEventListener('input', function() {
+        this.value = this.value.replace(/[^0-9]/g, '');
+        if (this.value.length > 9) {
+            this.value = this.value.slice(0, 9);
+        }
+        validatePhone(this);
+    });
+    
+    guardianPhoneInput.addEventListener('input', function() {
+        this.value = this.value.replace(/[^0-9]/g, '');
+        if (this.value.length > 9) {
+            this.value = this.value.slice(0, 9);
+        }
+        validatePhone(this);
+    });
+    
+    // Validar solo letras en nombres
+    firstNameInput.addEventListener('input', function() {
+        validateName(this);
+    });
+    
+    lastNameInput.addEventListener('input', function() {
+        validateName(this);
+    });
+    
+    guardianNameInput.addEventListener('input', function() {
+        validateName(this);
+    });
+    
+    emergencyContactNameInput.addEventListener('input', function() {
+        validateName(this);
+    });
+    
+    // Validar email
+    emailInput.addEventListener('blur', function() {
+        validateEmail();
+    });
+    
+    // Validar fecha de nacimiento
+    birthDateInput.addEventListener('change', function() {
+        validateBirthDate();
+    });
+    
+    // Validar dirección
+    addressInput.addEventListener('input', function() {
+        validateAddress();
+    });
+    
+    // Validar género
+    genderSelect.addEventListener('change', function() {
+        validateGender();
+    });
+    
+    // Validaciones del formulario
+    form.addEventListener('submit', function(e) {
+        let isValid = true;
+        
+        // Validar campos obligatorios
+        const requiredFields = ['first_name', 'last_name', 'dni', 'birth_date', 'gender'];
+        requiredFields.forEach(fieldName => {
+            const field = document.getElementById(fieldName);
+            if (!field.value.trim()) {
+                showFieldError(field, 'Este campo es obligatorio');
+                isValid = false;
+            } else {
+                clearFieldError(field);
+            }
+        });
+        
+        // Validaciones específicas
+        if (!validateDNI()) isValid = false;
+        if (!validateName(firstNameInput)) isValid = false;
+        if (!validateName(lastNameInput)) isValid = false;
+        if (!validateGender()) isValid = false;
+        if (!validateEmail()) isValid = false;
+        if (!validatePhone(phoneInput)) isValid = false;
+        if (!validatePhone(emergencyPhoneInput)) isValid = false;
+        if (!validateAddress()) isValid = false;
+        if (!validateBirthDate()) isValid = false;
+        
+        // Validar campos de apoderado si es necesario
+        const age = calculateAge(birthDateInput.value);
+        if (age < 18) {
+            const guardianRequiredFields = ['guardian_name', 'guardian_dni', 'guardian_phone', 'guardian_relationship'];
+            guardianRequiredFields.forEach(fieldName => {
+                const field = document.getElementById(fieldName);
+                if (!field.value.trim()) {
+                    showFieldError(field, 'Este campo es obligatorio para menores de edad');
+                    isValid = false;
+                }
+            });
+            
+            if (!validateGuardianDNI()) isValid = false;
+            if (!validateName(guardianNameInput)) isValid = false;
+            if (!validatePhone(guardianPhoneInput)) isValid = false;
+        }
+        
+        if (!isValid) {
+            e.preventDefault();
+            showAlert('danger', 'Por favor corrija los errores en el formulario');
+        }
+    });
+    
+    function validateDNI() {
+        const dni = dniInput.value.trim();
+        if (dni && (dni.length !== 8 || !/^\d{8}$/.test(dni))) {
+            showFieldError(dniInput, 'El DNI debe contener exactamente 8 dígitos');
+            return false;
+        }
+        clearFieldError(dniInput);
+        return true;
+    }
+    
+    function validateGuardianDNI() {
+        const dni = guardianDniInput.value.trim();
+        if (dni && (dni.length !== 8 || !/^\d{8}$/.test(dni))) {
+            showFieldError(guardianDniInput, 'El DNI debe contener exactamente 8 dígitos');
+            return false;
+        }
+        clearFieldError(guardianDniInput);
+        return true;
+    }
+    
+    function validateName(nameField) {
+        const name = nameField.value.trim();
+        if (name) {
+            const namePattern = /^[A-Za-zÁÉÍÓÚáéíóúÑñ\s]{2,50}$/;
+            if (!namePattern.test(name)) {
+                showFieldError(nameField, 'Solo letras y espacios, entre 2 y 50 caracteres');
+                return false;
+            }
+        }
+        clearFieldError(nameField);
+        return true;
+    }
+    
+    function validateGender() {
+        const gender = genderSelect.value;
+        if (!gender) {
+            showFieldError(genderSelect, 'Debe seleccionar un género');
+            return false;
+        }
+        clearFieldError(genderSelect);
+        return true;
+    }
+    
+    function validateEmail() {
+        const email = emailInput.value.trim();
+        if (email) {
+            const emailPattern = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+            if (!emailPattern.test(email)) {
+                showFieldError(emailInput, 'Formato de email inválido');
+                return false;
+            }
+        }
+        clearFieldError(emailInput);
+        return true;
+    }
+    
+    function validatePhone(phoneField) {
+        const phone = phoneField.value.trim();
+        if (phone && (phone.length !== 9 || !/^\d{9}$/.test(phone))) {
+            showFieldError(phoneField, 'El teléfono debe contener exactamente 9 dígitos');
+            return false;
+        }
+        clearFieldError(phoneField);
+        return true;
+    }
+    
+    function validateAddress() {
+        const address = addressInput.value.trim();
+        if (address && (address.length < 10 || address.length > 200)) {
+            showFieldError(addressInput, 'La dirección debe tener entre 10 y 200 caracteres');
+            return false;
+        }
+        clearFieldError(addressInput);
+        return true;
+    }
+    
+    function calculateAge(birthDate) {
+        if (!birthDate) return 0;
+        const today = new Date();
+        const birth = new Date(birthDate);
+        const age = today.getFullYear() - birth.getFullYear();
+        const monthDiff = today.getMonth() - birth.getMonth();
+        
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+            return age - 1;
+        }
+        return age;
+    }
+    
+    function validateBirthDate() {
+        const birthDate = birthDateInput.value;
+        if (birthDate) {
+            const date = new Date(birthDate);
+            const today = new Date();
+            const age = calculateAge(birthDate);
+            
+            if (date >= today) {
+                showFieldError(birthDateInput, 'La fecha de nacimiento debe ser anterior a hoy');
+                return false;
+            }
+            
+            if (age > 120) {
+                showFieldError(birthDateInput, 'La edad no puede ser mayor a 120 años');
+                return false;
+            }
+            
+            // Mostrar/ocultar sección de apoderado para menores de edad
+            toggleGuardianSection(age);
+        }
+        clearFieldError(birthDateInput);
+        return true;
+    }
+    
+    function toggleGuardianSection(age) {
+        const guardianSection = document.getElementById('guardian-section');
+        const guardianFields = ['guardian_name', 'guardian_dni', 'guardian_phone', 'guardian_relationship'];
+        
+        if (age < 18) {
+            // Mostrar sección de apoderado
+            guardianSection.style.display = 'block';
+            // Hacer campos obligatorios
+            guardianFields.forEach(fieldId => {
+                const field = document.getElementById(fieldId);
+                if (field) {
+                    field.required = true;
+                    // Agregar asterisco al label si no existe
+                    const label = document.querySelector(`label[for="${fieldId}"]`);
+                    if (label && !label.textContent.includes('*')) {
+                        label.innerHTML = label.innerHTML.replace('*', '') + ' *';
+                    }
+                }
+            });
+        } else {
+            // Ocultar sección de apoderado
+            guardianSection.style.display = 'none';
+            // Quitar campos obligatorios
+            guardianFields.forEach(fieldId => {
+                const field = document.getElementById(fieldId);
+                if (field) {
+                    field.required = false;
+                    field.value = ''; // Limpiar valores
+                }
+            });
+        }
+    }
+    
+    // Verificar edad al cargar la página (para edición)
+    if (birthDateInput.value) {
+        validateBirthDate();
+    }
+    
+    // Funciones de ayuda
+    function showFieldError(field, message) {
+        field.classList.add('is-invalid');
+        field.classList.remove('is-valid');
+        
+        let errorDiv = field.nextElementSibling;
+        if (!errorDiv || !errorDiv.classList.contains('invalid-feedback')) {
+            errorDiv = document.createElement('div');
+            errorDiv.className = 'invalid-feedback';
+            field.parentNode.insertBefore(errorDiv, field.nextSibling);
+        }
+        errorDiv.textContent = message;
+    }
+    
+    function clearFieldError(field) {
+        field.classList.remove('is-invalid');
+        field.classList.add('is-valid');
+        
+        const errorDiv = field.nextElementSibling;
+        if (errorDiv && errorDiv.classList.contains('invalid-feedback')) {
+            errorDiv.remove();
+        }
+    }
+    
+    function showAlert(type, message) {
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+        alertDiv.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        const form = document.querySelector('form');
+        form.parentNode.insertBefore(alertDiv, form);
+        
+        setTimeout(() => {
+            alertDiv.remove();
+        }, 5000);
+    }
+    
+    // ...existing code...
+});
+</script>
+{% endblock %}

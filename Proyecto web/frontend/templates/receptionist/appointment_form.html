@@ -1,0 +1,700 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>
+        <i class="fas fa-calendar-plus"></i> {{ title }}
+    </h2>
+    <a href="{{ url_for('receptionist.appointments') }}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Volver a Citas
+    </a>
+</div>
+
+<!-- Nueva Cita Médica -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">
+            <i class="fas fa-calendar-check"></i> 
+            {% if appointment %}
+                Editar Cita Médica
+            {% else %}
+                Nueva Cita Médica
+            {% endif %}
+        </h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-lg-8"> 
+                                    {% if appointment %}
+                                        Editar Cita
+                                    {% else %}
+                                        Nueva Cita Médica
+                                    {% endif %}
+                                </h5>
+                            </div>                            <div class="card-body">
+                                <form method="POST" novalidate>
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                    <div class="row">
+                                        <!-- Seleccionar Paciente -->
+                                        <div class="col-md-6 mb-3">
+                                            <label for="patient_search" class="form-label">
+                                                <i class="fas fa-user"></i> Paciente *
+                                            </label>
+                                            <div class="position-relative">
+                                                <input type="text" 
+                                                       class="form-control" 
+                                                       id="patient_search" 
+                                                       placeholder="Buscar paciente por nombre o DNI..." 
+                                                       autocomplete="off" 
+                                                       required
+                                                       value="{% if appointment %}{{ appointment.patient.full_name }} - DNI: {{ appointment.patient.dni }}{% elif form_data and form_data.get('patient_id') %}{% set pid=form_data.get('patient_id')|int %}{% for patient in patients %}{% if patient.id==pid %}{{ patient.full_name }} - DNI: {{ patient.dni }}{% endif %}{% endfor %}{% endif %}">
+                                                <input type="hidden" name="patient_id" id="patient_id" value="{% if appointment %}{{ appointment.patient_id }}{% elif form_data %}{{ form_data.get('patient_id', '') }}{% endif %}">
+                                                
+                                                <!-- Dropdown de resultados de búsqueda -->
+                                                <div class="dropdown-menu w-100" id="patient_dropdown" style="max-height: 200px; overflow-y: auto; display: none;">
+                                                    <!-- Los resultados se llenarán dinámicamente -->
+                                                </div>
+                                                
+                                                <!-- Indicador de carga -->
+                                                <div class="position-absolute top-50 end-0 translate-middle-y me-3" id="patient_loading" style="display: none;">
+                                                    <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                                        <span class="visually-hidden">Buscando...</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="form-text">
+                                                <i class="fas fa-info-circle"></i> 
+                                                Escriba el nombre o DNI del paciente para buscar. Si no encuentra el paciente, <a href="{{ url_for('receptionist.new_patient') }}" target="_blank">regístrelo aquí</a>
+                                            </div>
+                                        </div>
+
+                                        <!-- Seleccionar Doctor -->
+                                        <div class="col-md-6 mb-3">
+                                            <label for="doctor_search" class="form-label">
+                                                <i class="fas fa-user-md"></i> Doctor *
+                                            </label>
+                                            <div class="position-relative">
+                                                <input type="text" 
+                                                       class="form-control" 
+                                                       id="doctor_search" 
+                                                       placeholder="Buscar doctor por nombre..." 
+                                                       autocomplete="off" 
+                                                       required
+                                                       value="{% if appointment %}Dr. {{ appointment.doctor.full_name }}{% elif form_data and form_data.get('doctor_id') %}{% set did=form_data.get('doctor_id')|int %}{% for doctor in doctors %}{% if doctor.id==did %}Dr. {{ doctor.full_name }}{% endif %}{% endfor %}{% endif %}">
+                                                <input type="hidden" name="doctor_id" id="doctor_id" value="{% if appointment %}{{ appointment.doctor_id }}{% elif form_data %}{{ form_data.get('doctor_id', '') }}{% endif %}">
+                                                
+                                                <!-- Dropdown de resultados de búsqueda -->
+                                                <div class="dropdown-menu w-100" id="doctor_dropdown" style="max-height: 200px; overflow-y: auto; display: none;">
+                                                    <!-- Los resultados se llenarán dinámicamente -->
+                                                </div>
+                                                
+                                                <!-- Indicador de carga -->
+                                                <div class="position-absolute top-50 end-0 translate-middle-y me-3" id="doctor_loading" style="display: none;">
+                                                    <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                                        <span class="visually-hidden">Buscando...</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="form-text">
+                                                <i class="fas fa-info-circle"></i> 
+                                                Escriba el nombre del doctor para buscar
+                                            </div>
+                                        </div>
+
+                                        <!-- Especialidad (automática) -->
+                                        <div class="col-md-6 mb-3">
+                                            <label for="specialty_display" class="form-label">
+                                                <i class="fas fa-stethoscope"></i> Especialidad *
+                                            </label>
+                                            <!-- Campo visible (solo lectura) -->
+                                            <select class="form-select" id="specialty_display" disabled style="background-color: #f8f9fa;">
+                                                <option value="">Primero seleccione doctor...</option>
+                                                {% for specialty in specialties %}
+                                                <option value="{{ specialty.id }}" 
+                                                        {% if appointment and appointment.specialty_id == specialty.id %}
+                                                            selected
+                                                        {% elif form_data and form_data.get('specialty_id') == specialty.id|string %}
+                                                            selected
+                                                        {% endif %}>
+                                                    {{ specialty.name }}
+                                                </option>
+                                                {% endfor %}
+                                            </select>
+                                            <!-- Campo hidden que se envía en el formulario -->
+                                            <input type="hidden" id="specialty_id" name="specialty_id" 
+                                                   value="{% if appointment %}{{ appointment.specialty_id }}{% elif form_data %}{{ form_data.get('specialty_id', '') }}{% endif %}" required>
+                                            <div class="form-text">
+                                                <i class="fas fa-info-circle"></i> 
+                                                Se asigna automáticamente según el doctor seleccionado
+                                            </div>
+                                        </div>                                        <!-- Fecha -->
+                                        <div class="col-md-6 mb-3">
+                                            <label for="appointment_date" class="form-label">
+                                                <i class="fas fa-calendar"></i> Fecha *
+                                            </label>
+                                            <input type="date" class="form-control" id="appointment_date" 
+                                                   name="appointment_date" required
+                                                   value="{% if appointment %}{{ appointment.date_time.strftime('%Y-%m-%d') }}{% elif form_data %}{{ form_data.get('appointment_date', '') }}{% endif %}">
+                                        </div>
+
+                                        <!-- Hora -->
+                                        <div class="col-md-6 mb-3">
+                                            <label for="appointment_time" class="form-label">
+                                                <i class="fas fa-clock"></i> Hora *
+                                            </label>
+                                            <select class="form-select" id="appointment_time" name="appointment_time" required disabled>
+                                                <option value="">Primero seleccione doctor y fecha...</option>
+                                            </select>
+                                            <div class="form-text">
+                                                <i class="fas fa-info-circle"></i> 
+                                                Los horarios se cargan según la disponibilidad del doctor
+                                            </div>
+                                        </div>
+
+                                        <!-- Motivo -->
+                                        <div class="col-md-6 mb-3">
+                                            <label for="reason" class="form-label">
+                                                <i class="fas fa-comment-medical"></i> Motivo de la Cita
+                                            </label>
+                                            <textarea class="form-control" id="reason" name="reason" rows="3" 
+                                                      placeholder="Descripción del motivo de la consulta...">{% if appointment %}{{ appointment.reason or '' }}{% elif form_data %}{{ form_data.get('reason', '') }}{% endif %}</textarea>
+                                        </div>
+
+                                        <!-- Notas -->
+                                        <div class="col-md-6 mb-3">
+                                            <label for="notes" class="form-label">
+                                                <i class="fas fa-sticky-note"></i> Notas Adicionales
+                                            </label>
+                                            <textarea class="form-control" id="notes" name="notes" rows="3" 
+                                                      placeholder="Notas adicionales, instrucciones especiales...">{% if appointment %}{{ appointment.notes or '' }}{% elif form_data %}{{ form_data.get('notes', '') }}{% endif %}</textarea>
+                                        </div>
+                                    </div>
+
+                                    <div class="d-flex justify-content-between">
+                                        <a href="{{ url_for('receptionist.appointments') }}" class="btn btn-secondary">
+                                            <i class="fas fa-times"></i> Cancelar
+                                        </a>
+                                        <button type="submit" class="btn btn-primary">
+                                            <i class="fas fa-save"></i> 
+                                            {% if appointment %}
+                                                Actualizar Cita
+                                            {% else %}
+                                                Programar Cita
+                                            {% endif %}
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Panel de información -->
+                    <div class="col-lg-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-info-circle"></i> Información
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="alert alert-info">
+                                    <h6><i class="fas fa-lightbulb"></i> Consejos:</h6>
+                                    <ul class="mb-0 small">
+                                        <li>Verifique la disponibilidad del doctor antes de programar</li>
+                                        <li>Las citas se pueden programar con al menos 1 día de anticipación</li>
+                                        <li>Confirme los datos del paciente antes de guardar</li>
+                                        <li>El motivo de consulta ayuda al doctor a prepararse</li>
+                                    </ul>
+                                </div>
+
+                                <div class="mt-3" id="patientInfo" style="display: none;">
+                                    <h6><i class="fas fa-user"></i> Datos del Paciente:</h6>
+                                    <div class="border rounded p-3">
+                                        <p class="mb-1"><strong>Nombre:</strong> <span id="patientName"></span></p>
+                                        <p class="mb-1"><strong>DNI:</strong> <span id="patientDNI"></span></p>
+                                        <p class="mb-0"><strong>Teléfono:</strong> <span id="patientPhone"></span></p>
+                                    </div>
+                                </div>
+
+                                <div class="mt-3" id="doctorInfo" style="display: none;">
+                                    <h6><i class="fas fa-user-md"></i> Doctor Seleccionado:</h6>
+                                    <div class="border rounded p-3">
+                                        <p class="mb-2"><strong>Dr.</strong> <span id="doctorName"></span></p>
+                                        <div id="validityInfo" class="mt-2">
+                                            <small class="text-muted">
+                                                <i class="fas fa-calendar-check"></i> 
+                                                <strong>Fechas disponibles:</strong> <span id="availableDatesInfo">Cargando...</span>
+                                            </small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {% if appointment %}
+                        <div class="card mt-3">
+                            <div class="card-header">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-clock"></i> Estado de la Cita
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                <p><strong>Estado actual:</strong> 
+                                    {% if appointment.status == 'scheduled' %}
+                                        <span class="badge bg-info">Programada</span>
+                                    {% elif appointment.status == 'confirmed' %}
+                                        <span class="badge bg-success">Confirmada</span>
+                                    {% elif appointment.status == 'completed' %}
+                                        <span class="badge bg-primary">Completada</span>
+                                    {% elif appointment.status == 'cancelled' %}
+                                        <span class="badge bg-danger">Cancelada</span>
+                                    {% endif %}
+                                </p>
+                                {% if appointment.created_at %}
+                                <p class="small text-muted">
+                                    Creada: {{ appointment.created_at.strftime('%d/%m/%Y %H:%M') }}
+                                </p>
+                                {% endif %}
+                            </div>
+                        </div>                        {% endif %}
+                    </div>
+                </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Real-time patient search functionality
+    const patientSearchInput = document.getElementById('patient_search');
+    const patientIdHidden = document.getElementById('patient_id');
+    const patientDropdown = document.getElementById('patient_dropdown');
+    const patientLoading = document.getElementById('patient_loading');
+    let patientSearchTimeout;
+    let currentPatients = [];
+
+    // Function to search patients
+    function searchPatients(query) {
+        patientLoading.style.display = 'block';
+        
+        fetch(`{{ url_for('receptionist.search_patients') }}?q=${encodeURIComponent(query)}`)
+            .then(response => response.json())
+            .then(data => {
+                patientLoading.style.display = 'none';
+                
+                if (data.success) {
+                    currentPatients = data.patients;
+                    displayPatientResults(data.patients);
+                } else {
+                    console.error('Error searching patients:', data.error);
+                    displayPatientResults([]);
+                }
+            })
+            .catch(error => {
+                patientLoading.style.display = 'none';
+                console.error('Error:', error);
+                displayPatientResults([]);
+            });
+    }
+
+    // Function to display patient search results
+    function displayPatientResults(patients) {
+        patientDropdown.innerHTML = '';
+        
+        if (patients.length === 0) {
+            patientDropdown.innerHTML = '<div class="dropdown-item-text text-muted">No se encontraron pacientes</div>';
+        } else {
+            patients.forEach(patient => {
+                const item = document.createElement('a');
+                item.className = 'dropdown-item';
+                item.href = '#';
+                item.innerHTML = `
+                    <div>
+                        <strong>${patient.name} ${patient.lastname}</strong>
+                        <br>
+                        <small class="text-muted">DNI: ${patient.dni} | Tel: ${patient.phone || 'No especificado'}</small>
+                    </div>
+                `;
+                
+                item.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    selectPatient(patient);
+                });
+                
+                patientDropdown.appendChild(item);
+            });
+        }
+        
+        patientDropdown.style.display = patients.length > 0 ? 'block' : 'none';
+    }
+
+    // Function to select a patient
+    function selectPatient(patient) {
+        patientSearchInput.value = `${patient.name} ${patient.lastname} - DNI: ${patient.dni}`;
+        patientIdHidden.value = patient.id;
+        patientDropdown.style.display = 'none';
+        
+        // Show patient info
+        document.getElementById('patientName').textContent = `${patient.name} ${patient.lastname}`;
+        document.getElementById('patientDNI').textContent = patient.dni;
+        document.getElementById('patientPhone').textContent = patient.phone || 'No especificado';
+        document.getElementById('patientInfo').style.display = 'block';
+    }
+
+    // Patient search input event listener
+    patientSearchInput.addEventListener('input', function() {
+        const query = this.value.trim();
+        
+        // Clear previous timeout
+        clearTimeout(patientSearchTimeout);
+        
+        // Clear hidden field if input is empty
+        if (!query) {
+            patientIdHidden.value = '';
+            patientDropdown.style.display = 'none';
+            document.getElementById('patientInfo').style.display = 'none';
+            return;
+        }
+        
+        // Debounce search - wait 300ms after user stops typing
+        patientSearchTimeout = setTimeout(() => {
+            searchPatients(query);
+        }, 300);
+    });
+
+    // Hide dropdown when clicking outside
+    document.addEventListener('click', function(event) {
+        if (!patientSearchInput.contains(event.target) && !patientDropdown.contains(event.target)) {
+            patientDropdown.style.display = 'none';
+        }
+    });
+
+    // Show dropdown when focusing on input
+    patientSearchInput.addEventListener('focus', function() {
+        if (currentPatients.length > 0) {
+            patientDropdown.style.display = 'block';
+        }
+    });
+
+    // Initialize other elements
+    const dateInput = document.getElementById('appointment_date');
+    const timeSelect = document.getElementById('appointment_time');
+    const patientInfo = document.getElementById('patientInfo');
+    const doctorInfo = document.getElementById('doctorInfo');
+    const doctorSelect = document.getElementById('doctor_id');
+    const specialtySelect = document.getElementById('specialty_display');
+
+    // Real-time doctor search functionality
+    const doctorSearchInput = document.getElementById('doctor_search');
+    const doctorIdHidden = document.getElementById('doctor_id');
+    const doctorDropdown = document.getElementById('doctor_dropdown');
+    const doctorLoading = document.getElementById('doctor_loading');
+    let doctorSearchTimeout;
+    let currentDoctors = [];
+
+    // Function to search doctors
+    function searchDoctors(query) {
+        doctorLoading.style.display = 'block';
+        
+        fetch(`{{ url_for('receptionist.search_doctors') }}?q=${encodeURIComponent(query)}`)
+            .then(response => response.json())
+            .then(data => {
+                doctorLoading.style.display = 'none';
+                
+                if (data.success) {
+                    currentDoctors = data.doctors;
+                    displayDoctorResults(data.doctors);
+                } else {
+                    console.error('Error searching doctors:', data.error);
+                    displayDoctorResults([]);
+                }
+            })
+            .catch(error => {
+                doctorLoading.style.display = 'none';
+                console.error('Error:', error);
+                displayDoctorResults([]);
+            });
+    }
+
+    // Function to display doctor search results
+    function displayDoctorResults(doctors) {
+        doctorDropdown.innerHTML = '';
+        
+        if (doctors.length === 0) {
+            doctorDropdown.innerHTML = '<div class="dropdown-item-text text-muted">No se encontraron doctores</div>';
+        } else {
+            doctors.forEach(doctor => {
+                const item = document.createElement('a');
+                item.className = 'dropdown-item';
+                item.href = '#';
+                item.innerHTML = `
+                    <div>
+                        <strong>Dr. ${doctor.full_name}</strong>
+                        <br>
+                        <small class="text-muted">${doctor.specialty_name}</small>
+                    </div>
+                `;
+                
+                item.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    selectDoctor(doctor);
+                });
+                
+                doctorDropdown.appendChild(item);
+            });
+        }
+        
+        doctorDropdown.style.display = doctors.length > 0 ? 'block' : 'none';
+    }
+
+    // Function to select a doctor
+    function selectDoctor(doctor) {
+        doctorSearchInput.value = `Dr. ${doctor.full_name}`;
+        doctorIdHidden.value = doctor.id;
+        doctorDropdown.style.display = 'none';
+        
+        // Update specialty field
+        document.getElementById('specialty_display').value = doctor.specialty_id || '';
+        document.getElementById('specialty_id').value = doctor.specialty_id || '';
+        
+        // Show doctor info
+        document.getElementById('doctorName').textContent = `Dr. ${doctor.full_name}`;
+        document.getElementById('doctorInfo').style.display = 'block';
+        
+        // Update available dates
+        updateAvailableDates(doctor.id);
+    }
+
+    // Doctor search input event listener
+    doctorSearchInput.addEventListener('input', function() {
+        const query = this.value.trim();
+        
+        // Clear previous timeout
+        clearTimeout(doctorSearchTimeout);
+        
+        // Clear hidden field if input is empty
+        if (!query) {
+            doctorIdHidden.value = '';
+            doctorDropdown.style.display = 'none';
+            document.getElementById('doctorInfo').style.display = 'none';
+            document.getElementById('specialty_display').value = '';
+            document.getElementById('specialty_id').value = '';
+            return;
+        }
+        
+        // Debounce search - wait 300ms after user stops typing
+        doctorSearchTimeout = setTimeout(() => {
+            searchDoctors(query);
+        }, 300);
+    });
+
+    // Hide dropdown when clicking outside
+    document.addEventListener('click', function(event) {
+        if (!doctorSearchInput.contains(event.target) && !doctorDropdown.contains(event.target)) {
+            doctorDropdown.style.display = 'none';
+        }
+    });
+
+    // Show dropdown when focusing on input
+    doctorSearchInput.addEventListener('focus', function() {
+        if (currentDoctors.length > 0) {
+            doctorDropdown.style.display = 'block';
+        }
+    });
+
+    // Función para habilitar/deshabilitar fechas según disponibilidad del doctor
+    function updateAvailableDates(doctorId) {
+        if (!doctorId) {
+            dateInput.disabled = true;
+            dateInput.value = '';
+            timeSelect.disabled = true;
+            timeSelect.innerHTML = '<option value="">Primero seleccione doctor y fecha...</option>';
+            return;
+        }
+
+        // Obtener fechas disponibles del doctor
+        fetch(`{{ url_for('receptionist.api_doctor_available_dates', doctor_id=0) }}`.replace('0', doctorId))
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const availableDates = data.available_dates;
+                    
+                    if (availableDates.length === 0) {
+                        dateInput.disabled = true;
+                        dateInput.value = '';
+                        alert('Este doctor no tiene fechas disponibles configuradas.');
+                        return;
+                    }
+
+                    // Habilitar el campo de fecha
+                    dateInput.disabled = false;
+                    
+                    // Configurar fechas mínima y máxima
+                    if (data.validity_start) {
+                        dateInput.min = data.validity_start;
+                    }
+                    if (data.validity_end) {
+                        dateInput.max = data.validity_end;
+                    }
+
+                    // Crear un conjunto para búsqueda rápida
+                    const availableDateSet = new Set(availableDates);
+                    
+                    // Función para validar fecha seleccionada
+                    dateInput.addEventListener('input', function() {
+                        const selectedDate = this.value;
+                        if (selectedDate && !availableDateSet.has(selectedDate)) {
+                            alert('Esta fecha no está disponible para el doctor seleccionado.');
+                            this.value = '';
+                            return;
+                        }
+                        
+                        // Si la fecha es válida, cargar horarios
+                        if (selectedDate) {
+                            loadAvailableTimes(doctorId, selectedDate);
+                        }
+                    });
+
+                    // Limpiar selección previa
+                    dateInput.value = '';
+                    timeSelect.disabled = true;
+                    timeSelect.innerHTML = '<option value="">Seleccione una fecha primero...</option>';
+                    
+                    // La información del doctor ya se muestra desde selectDoctor(), no necesitamos duplicarla aquí
+                    
+                    // Mostrar información de fechas disponibles
+                    const availableDatesInfo = document.getElementById('availableDatesInfo');
+                    if (availableDates.length > 0) {
+                        const startDate = availableDates[0];
+                        const endDate = availableDates[availableDates.length - 1];
+                        availableDatesInfo.innerHTML = `${startDate} al ${endDate} (${availableDates.length} fechas disponibles)`;
+                    } else {
+                        availableDatesInfo.innerHTML = 'Sin fechas disponibles';
+                    }
+                    
+                } else {
+                    console.error('Error:', data.error);
+                    alert('Error al cargar fechas disponibles: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error de conexión al cargar fechas disponibles.');
+            });
+    }
+
+    // Función para cargar horarios disponibles
+    function loadAvailableTimes(doctorId, date) {
+        timeSelect.disabled = true;
+        timeSelect.innerHTML = '<option value="">Cargando horarios...</option>';
+
+        fetch(`{{ url_for('receptionist.api_available_times') }}?doctor_id=${doctorId}&date=${date}`)
+            .then(response => response.json())
+            .then(data => {
+                timeSelect.innerHTML = '';
+                
+                if (data.success && data.available_times.length > 0) {
+                    timeSelect.disabled = false;
+                    timeSelect.innerHTML = '<option value="">Seleccione un horario...</option>';
+                    
+                    data.available_times.forEach(time => {
+                        const option = document.createElement('option');
+                        option.value = time;
+                        option.textContent = time;
+                        timeSelect.appendChild(option);
+                    });
+                } else {
+                    timeSelect.innerHTML = '<option value="">No hay horarios disponibles</option>';
+                    if (data.message) {
+                        console.log('Info:', data.message);
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                timeSelect.innerHTML = '<option value="">Error al cargar horarios</option>';
+            });
+    }
+
+    // Manejar cambio de doctor
+    doctorSelect.addEventListener('change', function() {
+        const selectedOption = this.options[this.selectedIndex];
+        const doctorId = selectedOption.value;
+        
+        if (doctorId) {
+            document.getElementById('doctorName').textContent = selectedOption.text;
+            doctorInfo.style.display = 'block';
+            
+            // Obtener especialidad del doctor
+            fetch(`{{ url_for('receptionist.api_doctor_specialty', doctor_id=0) }}`.replace('0', doctorId))
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.specialty_id) {
+                        // Actualizar campo visual
+                        document.getElementById('specialty_display').disabled = false;
+                        document.getElementById('specialty_display').value = data.specialty_id;
+                        document.getElementById('specialty_display').disabled = true;
+                        
+                        // Actualizar campo hidden que se envía
+                        document.getElementById('specialty_id').value = data.specialty_id;
+                    } else {
+                        document.getElementById('specialty_display').disabled = true;
+                        document.getElementById('specialty_display').value = '';
+                        document.getElementById('specialty_id').value = '';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error obteniendo especialidad:', error);
+                    document.getElementById('specialty_display').disabled = true;
+                    document.getElementById('specialty_display').value = '';
+                    document.getElementById('specialty_id').value = '';
+                });
+            
+            // Actualizar fechas disponibles
+            updateAvailableDates(doctorId);
+            
+        } else {
+            doctorInfo.style.display = 'none';
+            document.getElementById('specialty_display').disabled = true;
+            document.getElementById('specialty_display').value = '';
+            document.getElementById('specialty_id').value = '';
+            dateInput.disabled = true;
+            dateInput.value = '';
+            timeSelect.disabled = true;
+            timeSelect.innerHTML = '<option value="">Primero seleccione doctor y fecha...</option>';
+        }
+    });
+
+    // Si hay valores preseleccionados (modo edición o repoblación), cargar datos
+    {% if appointment %}
+    if (doctorSelect.value) {
+        updateAvailableDates(doctorSelect.value);
+        if (dateInput.value) {
+            loadAvailableTimes(doctorSelect.value, dateInput.value);
+        }
+    }
+    {% endif %}
+    
+    // Si hay datos del formulario previo (después de error), cargar datos
+    {% if form_data %}
+    if (doctorSelect.value) {
+        updateAvailableDates(doctorSelect.value);
+        if (dateInput.value) {
+            loadAvailableTimes(doctorSelect.value, dateInput.value);
+        }
+    }
+    {% endif %}
+
+    // Mostrar información inicial si hay datos preseleccionados
+    if (patientIdHidden.value) {
+        const match = patientsList.find(p => p.id == patientIdHidden.value);
+        if (match) {
+            patientInput.value = `${match.full_name} - DNI: ${match.dni}`;
+            patientInput.dispatchEvent(new Event('input'));
+        }
+    }
+    if (doctorSelect.value) {
+        doctorSelect.dispatchEvent(new Event('change'));
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,194 @@
+/* Estilos personalizados para el Sistema de Gestión Médica */
+
+/* Variables CSS */
+:root {
+    --primary-color: #0d6efd;
+    --secondary-color: #6c757d;
+    --success-color: #198754;
+    --warning-color: #ffc107;
+    --danger-color: #dc3545;
+    --info-color: #0dcaf0;
+}
+
+/* Layout general */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f8f9fa;
+}
+
+/* Sidebar */
+.sidebar {
+    position: fixed;
+    top: 56px; /* Altura del navbar */
+    bottom: 0;
+    left: 0;
+    z-index: 100;
+    padding: 48px 0 0;
+    box-shadow: inset -1px 0 0 rgba(0, 0, 0, .1);
+}
+
+.sidebar .nav-link {
+    color: #6c757d;
+    font-weight: 500;
+    padding: 0.75rem 1rem;
+    border-radius: 0.25rem;
+    margin: 0.125rem 0.5rem;
+}
+
+.sidebar .nav-link:hover {
+    color: var(--primary-color);
+    background-color: rgba(13, 110, 253, 0.1);
+}
+
+.sidebar .nav-link.active {
+    color: var(--primary-color);
+    background-color: rgba(13, 110, 253, 0.1);
+    border-left: 3px solid var(--primary-color);
+}
+
+/* Cards */
+.card {
+    border: none;
+    border-radius: 0.5rem;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    transition: box-shadow 0.15s ease-in-out;
+}
+
+.card:hover {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+/* Formularios */
+.form-control {
+    border-radius: 0.375rem;
+    border: 1px solid #ced4da;
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.form-control:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+}
+
+/* Botones */
+.btn {
+    border-radius: 0.375rem;
+    font-weight: 500;
+    transition: all 0.15s ease-in-out;
+}
+
+.btn:hover {
+    transform: translateY(-1px);
+}
+
+/* Tablas */
+.table {
+    border-radius: 0.5rem;
+    overflow: hidden;
+}
+
+.table thead th {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    font-weight: 600;
+}
+
+/* Alertas */
+.alert {
+    border-radius: 0.5rem;
+    border: none;
+}
+
+/* Login page */
+.card-body .bi-hospital {
+    color: var(--primary-color);
+}
+
+/* Responsive */
+@media (max-width: 767.98px) {
+    .sidebar {
+        position: fixed;
+        top: 56px;
+        left: 0;
+        right: 0;
+        z-index: 1000;
+        background-color: #ffffff !important;
+        border-top: 1px solid #dee2e6;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        padding: 1rem 0;
+        max-height: calc(100vh - 56px);
+        overflow-y: auto;
+    }
+    
+    .sidebar .position-sticky {
+        background-color: #ffffff !important;
+    }
+    
+    .sidebar.collapse:not(.show) {
+        display: none;
+    }
+    
+    .sidebar.collapse.show {
+        display: block;
+    }
+    
+    /* Mejorar contraste de enlaces en móvil */
+    .sidebar .nav-link {
+        color: #212529 !important;
+        font-weight: 500;
+        padding: 0.75rem 1.5rem;
+        border-bottom: 1px solid #f8f9fa;
+    }
+    
+    .sidebar .nav-link:hover {
+        color: var(--primary-color) !important;
+        background-color: rgba(13, 110, 253, 0.1);
+    }
+    
+    .sidebar .nav-link.active {
+        color: var(--primary-color) !important;
+        background-color: rgba(13, 110, 253, 0.1);
+        border-left: 4px solid var(--primary-color);
+        font-weight: 600;
+    }
+    
+    .sidebar .nav-link i {
+        color: inherit;
+        margin-right: 0.5rem;
+    }
+    
+    main {
+        margin-left: 0 !important;
+        padding-top: 1rem;
+    }
+    
+    /* Overlay para cerrar el menú al hacer clic fuera */
+    .sidebar.show::before {
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0, 0, 0, 0.5);
+        z-index: -1;
+    }
+}
+
+@media (min-width: 768px) {
+    .sidebar {
+        display: block !important;
+    }
+}
+
+/* Utilidades */
+.text-primary { color: var(--primary-color) !important; }
+.bg-primary { background-color: var(--primary-color) !important; }
+.border-primary { border-color: var(--primary-color) !important; }
+
+/* Estados de citas */
+.status-scheduled { color: var(--warning-color); }
+.status-completed { color: var(--success-color); }
+.status-cancelled { color: var(--danger-color); }
+.status-no-show { color: var(--secondary-color); }

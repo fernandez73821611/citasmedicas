@@ -1,0 +1,329 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} - Sistema Médico{% endblock %}
+
+{% block header %}
+<h1 class="h3 mb-4">{{ title }}</h1>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <!-- Filtros de búsqueda -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-filter"></i> Filtros de Búsqueda
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="GET" class="row g-3">
+                    <div class="col-md-3">
+                        <label for="start_date" class="form-label">Fecha Inicio</label>
+                        <input type="date" class="form-control" id="start_date" name="start_date" value="{{ start_date }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="end_date" class="form-label">Fecha Fin</label>
+                        <input type="date" class="form-control" id="end_date" name="end_date" value="{{ end_date }}">
+                    </div>
+                    <div class="col-md-4">
+                        <label for="doctor_id" class="form-label">Doctor</label>
+                        <select class="form-select" id="doctor_id" name="doctor_id">
+                            <option value="">Todos los doctores</option>
+                            {% for doctor in doctors %}
+                                <option value="{{ doctor.id }}" {{ 'selected' if selected_doctor_id == doctor.id|string }}>
+                                    {{ doctor.full_name }}
+                                    {% if doctor.specialty %} - {{ doctor.specialty.name }}{% endif %}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fas fa-search"></i> Filtrar
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Resumen de totales -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card text-center border-primary">
+                    <div class="card-body">
+                        <h5 class="card-title text-primary">Total Comisiones</h5>
+                        <h3 class="text-primary">S/ {{ '%.2f'|format(total_commissions) }}</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center border-info">
+                    <div class="card-body">
+                        <h5 class="card-title text-info">Total Registros</h5>
+                        <h3 class="text-info">{{ commission_records|length }}</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center border-success">
+                    <div class="card-body">
+                        <h5 class="card-title text-success">Promedio por Consulta</h5>
+                        <h3 class="text-success">
+                            {% if commission_records|length > 0 %}
+                                S/ {{ '%.2f'|format(total_commissions / commission_records|length) }}
+                            {% else %}
+                                S/ 0.00
+                            {% endif %}
+                        </h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center border-warning">
+                    <div class="card-body">
+                        <h5 class="card-title text-warning">Doctores Activos</h5>
+                        <h3 class="text-warning">
+                            {{ commission_records|map(attribute='doctor_id')|unique|list|length }}
+                        </h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabla de comisiones -->
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-chart-line"></i> Registro de Comisiones Generadas
+                </h5>
+                <div>
+                    <a href="{{ url_for('admin.salary_management') }}" class="btn btn-outline-secondary btn-sm">
+                        <i class="fas fa-cog"></i> Configurar Comisiones
+                    </a>
+                    <button class="btn btn-outline-success btn-sm" onclick="exportToCSV()">
+                        <i class="fas fa-download"></i> Exportar CSV
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                {% if commission_records %}
+                    <div class="table-responsive">
+                        <table class="table table-hover" id="commissionsTable">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Doctor</th>
+                                    <th>Especialidad</th>
+                                    <th>Factura</th>
+                                    <th>Precio Base</th>
+                                    <th>Porcentaje</th>
+                                    <th>Comisión</th>
+                                    <th>Estado</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for record in commission_records %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ record.generated_date.strftime('%d/%m/%Y') }}</strong><br>
+                                        <small class="text-muted">{{ record.created_at.strftime('%H:%M') }}</small>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="avatar bg-primary text-white rounded-circle me-2 d-flex align-items-center justify-content-center" style="width: 30px; height: 30px; font-size: 12px;">
+                                                {{ record.doctor.first_name[0] }}{{ record.doctor.last_name[0] }}
+                                            </div>
+                                            <div>
+                                                <strong>{{ record.doctor.full_name }}</strong><br>
+                                                <small class="text-muted">{{ record.doctor.username }}</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        {% if record.appointment and record.appointment.specialty %}
+                                            <span class="badge bg-info">{{ record.appointment.specialty.name }}</span>
+                                        {% else %}
+                                            <span class="text-muted">N/A</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if record.invoice %}
+                                            <a href="#" class="text-decoration-none" title="Ver factura">
+                                                <strong>{{ record.invoice.invoice_number }}</strong>
+                                            </a><br>
+                                            {% if record.invoice.patient %}
+                                                <small class="text-muted">{{ record.invoice.patient.full_name }}</small>
+                                            {% else %}
+                                                <small class="text-muted">Paciente no disponible</small>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="text-muted">
+                                                <em>Factura no disponible</em>
+                                            </span><br>
+                                            <small class="text-muted">Datos eliminados</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <strong>S/ {{ '%.2f'|format(record.specialty_price) }}</strong>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-secondary">{{ '%.1f'|format(record.commission_percentage) }}%</span>
+                                    </td>
+                                    <td>
+                                        <strong class="text-success">S/ {{ '%.2f'|format(record.commission_amount) }}</strong>
+                                    </td>
+                                    <td>
+                                        {% if record.status == 'pending' %}
+                                            <span class="badge bg-warning">Pendiente</span>
+                                        {% elif record.status == 'paid' %}
+                                            <span class="badge bg-success">Pagado</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">{{ record.status|title }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            {% if record.status == 'pending' %}
+                                                <button class="btn btn-outline-success btn-sm" 
+                                                        onclick="markCommissionAsPaid({{ record.id }})"
+                                                        title="Marcar como pagado">
+                                                    <i class="fas fa-check"></i>
+                                                </button>
+                                            {% endif %}
+                                            <button class="btn btn-outline-info btn-sm" 
+                                                    onclick="showCommissionDetails({{ record.id }})"
+                                                    title="Ver detalles">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center text-muted py-5">
+                        <i class="fas fa-chart-line fa-3x mb-3"></i>
+                        <h5>No hay comisiones generadas</h5>
+                        <p>Las comisiones se generan automáticamente cuando se pagan las facturas.</p>
+                        <a href="{{ url_for('admin.salary_management') }}" class="btn btn-primary">
+                            <i class="fas fa-cog"></i> Configurar Comisiones
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para detalles de comisión -->
+<div class="modal fade" id="detailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-info-circle"></i> Detalles de Comisión
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <!-- Se carga dinámicamente -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function markCommissionAsPaid(commissionId) {
+    if (confirm('¿Marcar esta comisión como pagada?')) {
+        // Aquí implementarías la llamada AJAX para marcar como pagado
+        alert('Funcionalidad a implementar: marcar comisión como pagada');
+    }
+}
+
+function showCommissionDetails(commissionId) {
+    // Aquí implementarías la carga de detalles vía AJAX
+    document.getElementById('modalBody').innerHTML = `
+        <div class="text-center">
+            <div class="spinner-border" role="status">
+                <span class="visually-hidden">Cargando...</span>
+            </div>
+            <p class="mt-2">Cargando detalles...</p>
+        </div>
+    `;
+    
+    const modal = new bootstrap.Modal(document.getElementById('detailsModal'));
+    modal.show();
+    
+    // Simular carga de datos
+    setTimeout(() => {
+        document.getElementById('modalBody').innerHTML = `
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>Información de la Comisión</h6>
+                    <p><strong>ID:</strong> ${commissionId}</p>
+                    <p><strong>Estado:</strong> <span class="badge bg-warning">Pendiente</span></p>
+                    <p><strong>Fecha Generación:</strong> ${new Date().toLocaleDateString()}</p>
+                </div>
+                <div class="col-md-6">
+                    <h6>Cálculo Detallado</h6>
+                    <p><strong>Precio Base:</strong> S/ 150.00</p>
+                    <p><strong>Porcentaje:</strong> 40%</p>
+                    <p><strong>Comisión:</strong> <span class="text-success fw-bold">S/ 60.00</span></p>
+                </div>
+            </div>
+        `;
+    }, 1000);
+}
+
+function exportToCSV() {
+    const table = document.getElementById('commissionsTable');
+    let csv = [];
+    
+    // Headers
+    const headers = [];
+    table.querySelectorAll('thead th').forEach(th => {
+        headers.push(th.textContent.trim());
+    });
+    csv.push(headers.join(','));
+    
+    // Rows
+    table.querySelectorAll('tbody tr').forEach(row => {
+        const rowData = [];
+        row.querySelectorAll('td').forEach((td, index) => {
+            if (index < 7) { // Solo las primeras 7 columnas (sin acciones)
+                rowData.push('"' + td.textContent.trim().replace(/"/g, '""') + '"');
+            }
+        });
+        csv.push(rowData.join(','));
+    });
+    
+    // Download
+    const csvContent = csv.join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `comisiones_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+}
+
+// Auto-actualizar fechas por defecto
+document.addEventListener('DOMContentLoaded', function() {
+    const today = new Date().toISOString().split('T')[0];
+    const firstDay = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+    
+    if (!document.getElementById('start_date').value) {
+        document.getElementById('start_date').value = firstDay;
+    }
+    if (!document.getElementById('end_date').value) {
+        document.getElementById('end_date').value = today;
+    }
+});
+</script>
+{% endblock %}

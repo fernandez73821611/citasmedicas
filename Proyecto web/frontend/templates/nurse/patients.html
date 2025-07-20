@@ -1,0 +1,240 @@
+{% extends "base.html" %}
+
+{% block title %}Mis Pacientes - Sistema de Gestión Médica{% endblock %}
+
+{% block content %}
+<!-- Mensajes Flash -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ 'danger' if category == 'error' else 'success' }} alert-dismissible fade show" role="alert">
+                <i class="bi bi-{{ 'exclamation-triangle' if category == 'error' else 'check-circle' }}"></i>
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">
+        <i class="bi bi-people"></i> Mis Pacientes
+    </h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <button onclick="window.print()" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-printer"></i> Imprimir
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Estadísticas Rápidas -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card text-center">
+            <div class="card-body">
+                <i class="bi bi-people-fill display-4 text-primary"></i>
+                <h5 class="card-title">{{ patients_data|length }}</h5>
+                <p class="card-text">Pacientes Atendidos</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-center">
+            <div class="card-body">
+                <i class="bi bi-clipboard-heart display-4 text-success"></i>
+                <h5 class="card-title">{{ patients_data|selectattr('total_triages')|sum(attribute='total_triages') }}</h5>
+                <p class="card-text">Total Triages Realizados</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-center">
+            <div class="card-body">
+                <i class="bi bi-calendar-check display-4 text-warning"></i>
+                <h5 class="card-title">{{ patients_data|selectattr('next_appointment')|list|length }}</h5>
+                <p class="card-text">Próximas Citas Pendientes</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Búsqueda -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">
+            <i class="bi bi-search"></i> Buscar Pacientes
+        </h5>
+    </div>
+    <div class="card-body">
+        <form method="GET" class="row g-3">
+            <div class="col-md-8">
+                <input type="text" class="form-control" name="search" 
+                       value="{{ search }}" 
+                       placeholder="Buscar por nombre, apellido, DNI o email...">
+            </div>
+            <div class="col-md-4">
+                <div class="d-grid gap-2 d-md-flex">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-search"></i>
+                        Buscar
+                    </button>
+                    <a href="{{ url_for('nurse.patients') }}" class="btn btn-outline-secondary">
+                        <i class="bi bi-x"></i>
+                        Limpiar
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Lista de Pacientes -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">
+            <i class="bi bi-list-ul"></i> Lista de Pacientes
+        </h5>
+    </div>
+    <div class="card-body">
+        {% if patients_data %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Paciente</th>
+                            <th>Información</th>
+                            <th>Último Triage</th>
+                            <th>Prioridad</th>
+                            <th>Próxima Cita</th>
+                            <th>Total Triages</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for data in patients_data %}
+                        {% set patient = data.patient %}
+                        {% set last_triage = data.last_triage %}
+                        {% set next_appointment = data.next_appointment %}
+                        <tr>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="avatar-circle me-3">
+                                        {{ patient.first_name[0] }}{{ patient.last_name[0] }}
+                                    </div>
+                                    <div>
+                                        <strong>{{ patient.full_name }}</strong><br>
+                                        <small class="text-muted">DNI: {{ patient.dni }}</small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <small class="text-muted">
+                                    <i class="bi bi-calendar"></i> {{ patient.age }} años<br>
+                                    <i class="bi bi-telephone"></i> {{ patient.phone or 'No registrado' }}<br>
+                                    <i class="bi bi-envelope"></i> {{ patient.email or 'No registrado' }}
+                                </small>
+                            </td>
+                            <td>
+                                {% if last_triage %}
+                                    <small>
+                                        <strong>{{ last_triage.created_at.strftime('%d/%m/%Y') }}</strong><br>
+                                        <span class="text-muted">{{ last_triage.created_at.strftime('%H:%M') }}</span><br>
+                                        <span class="badge bg-{% if last_triage.status == 'completed' %}success{% elif last_triage.status == 'pending' %}warning{% else %}info{% endif %}">
+                                            {% if last_triage.status == 'pending' %}Pendiente
+                                            {% elif last_triage.status == 'completed' %}Completado
+                                            {% else %}En Consulta{% endif %}
+                                        </span>
+                                    </small>
+                                {% else %}
+                                    <span class="text-muted">Sin triage</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if data.priority_level %}
+                                    <span class="badge bg-{% if data.priority_level == 'alta' %}danger{% elif data.priority_level == 'media' %}warning{% else %}success{% endif %}">
+                                        {% if data.priority_level == 'alta' %}🔴 Alta
+                                        {% elif data.priority_level == 'media' %}🟡 Media
+                                        {% else %}🟢 Baja{% endif %}
+                                    </span>
+                                {% else %}
+                                    <span class="text-muted">Sin clasificar</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if next_appointment %}
+                                    <small>
+                                        <strong>{{ next_appointment.date_time.strftime('%d/%m/%Y') }}</strong><br>
+                                        <span class="text-muted">{{ next_appointment.date_time.strftime('%H:%M') }}</span><br>
+                                        <span class="badge bg-primary">Necesita Triage</span>
+                                    </small>
+                                {% else %}
+                                    <span class="text-muted">Sin citas pendientes</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="badge bg-info">{{ data.total_triages }}</span>
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm" role="group">
+                                    {% if last_triage %}
+                                    <a href="{{ url_for('nurse.view_triage', triage_id=last_triage.id) }}" 
+                                       class="btn btn-outline-primary" title="Ver último triage">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                    {% endif %}
+                                    
+                                    {% if next_appointment %}
+                                    <a href="{{ url_for('nurse.new_triage', appointment_id=next_appointment.id) }}" 
+                                       class="btn btn-outline-success" title="Realizar triage">
+                                        <i class="bi bi-clipboard-heart"></i>
+                                    </a>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="text-center py-5">
+                <i class="bi bi-people display-1 text-muted"></i>
+                <h4 class="text-muted mt-3">No hay pacientes</h4>
+                <p class="text-muted">
+                    {% if search %}
+                        No se encontraron pacientes que coincidan con "{{ search }}"
+                    {% else %}
+                        Aún no has realizado triage a ningún paciente.
+                    {% endif %}
+                </p>
+                {% if search %}
+                <a href="{{ url_for('nurse.patients') }}" class="btn btn-outline-primary">
+                    <i class="bi bi-arrow-left"></i> Ver todos los pacientes
+                </a>
+                {% else %}
+                <a href="{{ url_for('nurse.triage_list') }}" class="btn btn-primary">
+                    <i class="bi bi-clipboard-heart"></i> Ir a Gestión de Triage
+                </a>
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+.avatar-circle {
+    width: 40px;
+    height: 40px;
+    background-color: #007bff;
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 14px;
+}
+</style>
+{% endblock %}

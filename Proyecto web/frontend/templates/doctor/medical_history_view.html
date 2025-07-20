@@ -1,0 +1,457 @@
+{% extends "base.html" %}
+
+{% block title %}Historia Clínica - {{ patient.full_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Sidebar -->
+        <nav class="col-md-3 col-lg-2 d-md-block bg-light sidebar collapse">
+            {% include 'shared/sidebar.html' %}
+        </nav>
+
+        <!-- Main content -->
+        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                <h1 class="h2">
+                    <i class="fas fa-file-medical-alt me-2"></i>
+                    Historia Clínica
+                </h1>
+                <div class="btn-toolbar mb-2 mb-md-0">
+                    <div class="btn-group me-2">
+                        <a href="{{ url_for('doctor.clinical_histories') }}" class="btn btn-sm btn-outline-secondary">
+                            <i class="fas fa-arrow-left me-1"></i>
+                            Volver
+                        </a>
+                        {% if my_consultations|length == 0 %}
+                            <a href="{{ url_for('doctor.new_consultation', patient_id=patient.id) }}" class="btn btn-sm btn-primary">
+                                <i class="fas fa-stethoscope me-1"></i>
+                                Nueva Consulta
+                            </a>
+                        {% else %}
+                            <button class="btn btn-sm btn-secondary" disabled title="Ya realizó una consulta para este paciente">
+                                <i class="fas fa-stethoscope me-1"></i>
+                                Nueva Consulta (Ya realizada)
+                            </button>
+                        {% endif %}
+                        <button onclick="window.print()" class="btn btn-sm btn-info">
+                            <i class="fas fa-print me-1"></i>
+                            Imprimir
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {% if not medical_history %}
+            <!-- Sin historia clínica -->
+            <div class="row">
+                <div class="col-12">
+                    <div class="alert alert-warning d-flex align-items-center" role="alert">
+                        <i class="fas fa-exclamation-triangle me-3" style="font-size: 1.5rem;"></i>
+                        <div>
+                            <h5 class="alert-heading mb-1">Paciente Nuevo</h5>
+                            <p class="mb-0">Este paciente no tiene historia clínica registrada. Es necesario crear una antes de realizar consultas.</p>
+                        </div>
+                    </div>
+                    <div class="text-center">
+                        <a href="{{ url_for('doctor.new_medical_history', patient_id=patient.id) }}" class="btn btn-primary btn-lg">
+                            <i class="fas fa-plus-circle me-2"></i>
+                            Crear Historia Clínica
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            
+            <!-- HEADER - Datos de Identificación -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card border-primary">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0">
+                                <i class="fas fa-id-card me-2"></i>
+                                HISTORIA CLÍNICA - DATOS DE IDENTIFICACIÓN
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <div class="border p-3 h-100">
+                                        <h6 class="text-primary">
+                                            <i class="fas fa-hashtag me-1"></i>
+                                            Número de Historia Clínica
+                                        </h6>
+                                        <h4 class="text-dark">{{ medical_history.medical_history_number }}</h4>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="border p-3 h-100">
+                                        <h6 class="text-primary">
+                                            <i class="fas fa-calendar me-1"></i>
+                                            Fecha de Apertura
+                                        </h6>
+                                        <h5 class="text-dark">{{ medical_history.opening_date.strftime('%d/%m/%Y') }}</h5>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Datos del paciente -->
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6 class="text-primary mb-3">
+                                        <i class="fas fa-user me-1"></i>
+                                        Datos del Paciente
+                                    </h6>
+                                    <dl class="row">
+                                        <dt class="col-sm-5">Nombres y Apellidos:</dt>
+                                        <dd class="col-sm-7">{{ patient.full_name }}</dd>
+                                        
+                                        <dt class="col-sm-5">DNI:</dt>
+                                        <dd class="col-sm-7">{{ patient.dni }}</dd>
+                                        
+                                        <dt class="col-sm-5">Fecha de Nacimiento:</dt>
+                                        <dd class="col-sm-7">{{ patient.birth_date.strftime('%d/%m/%Y') }}</dd>
+                                        
+                                        <dt class="col-sm-5">Edad:</dt>
+                                        <dd class="col-sm-7">{{ patient.age }} años</dd>
+                                        
+                                        <dt class="col-sm-5">Sexo:</dt>
+                                        <dd class="col-sm-7">{{ patient.gender or 'No especificado' }}</dd>
+                                    </dl>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6 class="text-primary mb-3">
+                                        <i class="fas fa-address-book me-1"></i>
+                                        Datos de Contacto
+                                    </h6>
+                                    <dl class="row">
+                                        <dt class="col-sm-5">Dirección:</dt>
+                                        <dd class="col-sm-7">{{ patient.address or 'No especificado' }}</dd>
+                                        
+                                        <dt class="col-sm-5">Teléfono:</dt>
+                                        <dd class="col-sm-7">{{ patient.phone or 'No especificado' }}</dd>
+                                        
+                                        <dt class="col-sm-5">Email:</dt>
+                                        <dd class="col-sm-7">{{ patient.email or 'No especificado' }}</dd>
+                                    </dl>
+                                    
+                                    <h6 class="text-danger mb-3">
+                                        <i class="fas fa-phone me-1"></i>
+                                        Contacto de Emergencia
+                                    </h6>
+                                    <dl class="row">
+                                        <dt class="col-sm-5">Nombre:</dt>
+                                        <dd class="col-sm-7">{{ patient.emergency_contact_name or 'No especificado' }}</dd>
+                                        
+                                        <dt class="col-sm-5">Teléfono:</dt>
+                                        <dd class="col-sm-7">{{ patient.emergency_contact_phone or 'No especificado' }}</dd>
+                                        
+                                        <dt class="col-sm-5">Relación:</dt>
+                                        <dd class="col-sm-7">{{ patient.emergency_contact_relationship or 'No especificado' }}</dd>
+                                    </dl>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ANTECEDENTES MÉDICOS -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card border-info">
+                        <div class="card-header bg-info text-white">
+                            <h5 class="mb-0">
+                                <i class="fas fa-history me-2"></i>
+                                ANTECEDENTES MÉDICOS
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-4">
+                                        <h6 class="text-info">
+                                            <i class="fas fa-user-md me-1"></i>
+                                            Antecedentes Personales
+                                        </h6>
+                                        <div class="border p-3 bg-light">
+                                            {% if medical_history.personal_history %}
+                                                {{ medical_history.personal_history|replace('\n', '<br>')|safe }}
+                                            {% else %}
+                                                <em class="text-muted">No registrado</em>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mb-4">
+                                        <h6 class="text-danger">
+                                            <i class="fas fa-exclamation-triangle me-1"></i>
+                                            Alergias Específicas
+                                        </h6>
+                                        <div class="border p-3 bg-light">
+                                            {% if medical_history.allergies %}
+                                                {{ medical_history.allergies|replace('\n', '<br>')|safe }}
+                                            {% else %}
+                                                <em class="text-muted">No registrado</em>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mb-4">
+                                        <h6 class="text-info">
+                                            <i class="fas fa-cut me-1"></i>
+                                            Historia Quirúrgica
+                                        </h6>
+                                        <div class="border p-3 bg-light">
+                                            {% if medical_history.surgical_history %}
+                                                {{ medical_history.surgical_history|replace('\n', '<br>')|safe }}
+                                            {% else %}
+                                                <em class="text-muted">No registrado</em>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-4">
+                                        <h6 class="text-info">
+                                            <i class="fas fa-users me-1"></i>
+                                            Antecedentes Familiares
+                                        </h6>
+                                        <div class="border p-3 bg-light">
+                                            {% if medical_history.family_history %}
+                                                {{ medical_history.family_history|replace('\n', '<br>')|safe }}
+                                            {% else %}
+                                                <em class="text-muted">No registrado</em>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mb-4">
+                                        <h6 class="text-warning">
+                                            <i class="fas fa-pills me-1"></i>
+                                            Medicamentos Crónicos
+                                        </h6>
+                                        <div class="border p-3 bg-light">
+                                            {% if medical_history.chronic_medications %}
+                                                {{ medical_history.chronic_medications|replace('\n', '<br>')|safe }}
+                                            {% else %}
+                                                <em class="text-muted">No registrado</em>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- HÁBITOS Y ESTILO DE VIDA -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card border-warning">
+                        <div class="card-header bg-warning text-dark">
+                            <h5 class="mb-0">
+                                <i class="fas fa-heartbeat me-2"></i>
+                                HÁBITOS Y ESTILO DE VIDA
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <h6 class="text-warning">
+                                            <i class="fas fa-smoking me-1"></i>
+                                            Hábitos de Tabaco
+                                        </h6>
+                                        <div class="border p-3 bg-light">
+                                            {% if medical_history.smoking_habits %}
+                                                {{ medical_history.smoking_habits|replace('\n', '<br>')|safe }}
+                                            {% else %}
+                                                <em class="text-muted">No registrado</em>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <h6 class="text-warning">
+                                            <i class="fas fa-prescription-bottle me-1"></i>
+                                            Uso de Drogas
+                                        </h6>
+                                        <div class="border p-3 bg-light">
+                                            {% if medical_history.drug_habits %}
+                                                {{ medical_history.drug_habits|replace('\n', '<br>')|safe }}
+                                            {% else %}
+                                                <em class="text-muted">No registrado</em>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <h6 class="text-warning">
+                                            <i class="fas fa-wine-bottle me-1"></i>
+                                            Hábitos de Alcohol
+                                        </h6>
+                                        <div class="border p-3 bg-light">
+                                            {% if medical_history.alcohol_habits %}
+                                                {{ medical_history.alcohol_habits|replace('\n', '<br>')|safe }}
+                                            {% else %}
+                                                <em class="text-muted">No registrado</em>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <h6 class="text-success">
+                                            <i class="fas fa-running me-1"></i>
+                                            Actividad Física
+                                        </h6>
+                                        <div class="border p-3 bg-light">
+                                            {% if medical_history.physical_activity %}
+                                                {{ medical_history.physical_activity|replace('\n', '<br>')|safe }}
+                                            {% else %}
+                                                <em class="text-muted">No registrado</em>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RESUMEN DE CONSULTAS -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card border-success">
+                        <div class="card-header bg-success text-white">
+                            <h5 class="mb-0">
+                                <i class="fas fa-stethoscope me-2"></i>
+                                HISTORIAL DE CONSULTAS
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            {% set consultations = all_consultations %}
+                            {% if consultations %}
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>Fecha</th>
+                                            <th>Doctor</th>
+                                            <th>Especialidad</th>
+                                            <th>Motivo</th>
+                                            <th>Diagnóstico</th>
+                                            <th>Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for item in consultations_with_edit_info %}
+                                        {% set consultation = item.consultation %}
+                                        {% set edit_status = item.edit_status %}
+                                        <tr>
+                                            <td>{{ consultation.consultation_date.strftime('%d/%m/%Y %H:%M') }}</td>
+                                            <td>{{ consultation.doctor.full_name if consultation.doctor else 'N/A' }}</td>
+                                            <td>{{ consultation.get_doctor_specialty() }}</td>
+                                            <td>{{ consultation.chief_complaint[:50] + '...' if consultation.chief_complaint and consultation.chief_complaint|length > 50 else consultation.chief_complaint or 'N/A' }}</td>
+                                            <td>{{ consultation.diagnosis[:50] + '...' if consultation.diagnosis and consultation.diagnosis|length > 50 else consultation.diagnosis or 'N/A' }}</td>
+                                            <td>
+                                                <a href="{{ url_for('doctor.view_consultation', id=consultation.id) }}" class="btn btn-sm btn-outline-primary">
+                                                    <i class="fas fa-eye me-1"></i>
+                                                    Ver
+                                                </a>
+                                                <a href="{{ url_for('doctor.print_consultation_ticket', id=consultation.id) }}" class="btn btn-sm btn-outline-info" target="_blank" title="Imprimir ticket de consulta">
+                                                    <i class="fas fa-print me-1"></i>
+                                                    Ticket
+                                                </a>
+                                                {% if edit_status.can_edit %}
+                                                <a href="{{ url_for('doctor.edit_consultation', id=consultation.id) }}" class="btn btn-sm btn-outline-warning" 
+                                                   title="Editar consulta ({{ edit_status.time_remaining_minutes }} min restantes)">
+                                                    <i class="fas fa-edit me-1"></i>
+                                                    Editar
+                                                </a>
+                                                {% elif edit_status.is_own_consultation %}
+                                                <button class="btn btn-sm btn-secondary" disabled 
+                                                        title="{{ edit_status.message }}">
+                                                    <i class="fas fa-edit me-1"></i>
+                                                    Editar
+                                                </button>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <div class="text-center text-muted py-4">
+                                <i class="fas fa-clipboard-list fa-3x mb-3"></i>
+                                <p>No hay consultas registradas para este paciente.</p>
+                                <a href="{{ url_for('doctor.new_consultation', patient_id=patient.id) }}" class="btn btn-primary">
+                                    <i class="fas fa-plus me-1"></i>
+                                    Crear Primera Consulta
+                                </a>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ESTADÍSTICAS -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card text-white bg-primary">
+                        <div class="card-body text-center">
+                            <h3>{{ consultations|length if consultations else 0 }}</h3>
+                            <p class="mb-0">Total Consultas</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-white bg-info">
+                        <div class="card-body text-center">
+                            <h3>{{ (consultations|selectattr('doctor_id', 'equalto', current_user.id)|list)|length if consultations else 0 }}</h3>
+                            <p class="mb-0">Mis Consultas</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-white bg-success">
+                        <div class="card-body text-center">
+                            <h3>{{ consultations|selectattr('is_complete_consultation')|list|length if consultations else 0 }}</h3>
+                            <p class="mb-0">Completas</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-white bg-warning">
+                        <div class="card-body text-center">
+                            <h3>{{ medical_history.get_summary()['first_consultation'].strftime('%d/%m/%Y') if medical_history.get_summary()['first_consultation'] else 'N/A' }}</h3>
+                            <p class="mb-0">Primera Consulta</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </main>
+    </div>
+</div>
+
+<style>
+@media print {
+    .sidebar, .btn-toolbar, .no-print {
+        display: none !important;
+    }
+    .col-md-9 {
+        width: 100% !important;
+    }
+    .card {
+        break-inside: avoid;
+        page-break-inside: avoid;
+    }
+}
+</style>
+{% endblock %}

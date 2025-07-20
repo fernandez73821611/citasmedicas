@@ -1,0 +1,1437 @@
+{% extends "base.html" %}
+
+{% block title %}
+{% if triage %}Editar Triage{% else %}Nuevo Triage{% endif %} - Sistema de Gestión Médica
+{% endblock %}
+
+{% block content %}
+<!-- Mensajes Flash -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ 'danger' if category == 'error' else 'success' }} alert-dismissible fade show" role="alert">
+                <i class="bi bi-{{ 'exclamation-triangle' if category == 'error' else 'check-circle' }}"></i>
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">
+        <i class="bi bi-clipboard-heart"></i>
+        {% if triage %}
+            Editar Triage - {{ triage.patient.full_name }}
+        {% else %}
+            Nuevo Triage
+        {% endif %}
+    </h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <a href="{{ url_for('nurse.triage_list') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Volver a Lista
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-clipboard-data"></i>
+                    Evaluación de Triage
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" id="triageForm" novalidate>
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    
+                    <!-- Selección de Paciente -->
+                    {% if not triage %}
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <label for="patient_id" class="form-label">
+                                <i class="bi bi-person"></i> Paciente <span class="text-danger">*</span>
+                            </label>
+                            <select class="form-select" id="patient_id" name="patient_id" required onchange="updateFormByAge()">
+                                <option value="">Seleccionar paciente...</option>
+                                {% if not patients %}
+                                <option value="" disabled>No hay pacientes con citas pagadas para hoy</option>
+                                {% endif %}
+                                {% for patient in patients %}
+                                <option value="{{ patient.id }}" 
+                                        data-age="{{ patient.age }}" 
+                                        data-age-group="{{ patient.age_group }}"
+                                        data-age-label="{{ patient.age_group_label }}">
+                                    {{ patient.full_name }} - DNI: {{ patient.dni }} ({{ patient.age }} años)
+                                </option>
+                                {% endfor %}
+                            </select>
+                            {% if not patients %}
+                            <small class="text-warning">
+                                <i class="bi bi-exclamation-triangle"></i>
+                                Solo aparecen pacientes con citas pagadas para hoy. 
+                                Asegúrese de que el pago haya sido procesado en recepción.
+                            </small>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <label for="appointment_id" class="form-label">
+                                <i class="bi bi-calendar-check"></i> Cita Asociada 
+                                <span class="badge bg-success">Solo Pagadas</span>
+                            </label>
+                            <select class="form-select" id="appointment_id" name="appointment_id">
+                                <option value="">Seleccione primero un paciente...</option>
+                            </select>
+                            <small class="text-info">
+                                <i class="bi bi-info-circle"></i>
+                                Se llenará automáticamente al seleccionar el paciente
+                            </small>
+                        </div>
+                    </div>
+                    
+                    <!-- Información del Grupo Etario -->
+                    <div id="age-group-info" class="alert alert-info mb-4" style="display: none;">
+                        <strong><i class="bi bi-info-circle"></i> Grupo Etario:</strong> 
+                        <span id="age-group-label"></span>
+                        <br>
+                        <small id="age-specific-instructions"></small>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info mb-4">
+                        <strong>Paciente:</strong> {{ triage.patient.full_name }} - 
+                        <strong>DNI:</strong> {{ triage.patient.dni }} - 
+                        <strong>Edad:</strong> {{ triage.patient.age }} años
+                        <strong>Grupo:</strong> {{ triage.patient.age_group_label }}
+                    </div>
+                    {% endif %}
+
+                    <!-- Motivo Principal -->
+                    <div class="mb-4">
+                        <label for="chief_complaint" class="form-label">
+                            <i class="bi bi-chat-text"></i> Motivo Principal de Consulta <span class="text-danger">*</span>
+                        </label>
+                        <textarea class="form-control" id="chief_complaint" name="chief_complaint" rows="3" required
+                                  placeholder="Describe el motivo principal por el cual el paciente solicita la consulta...">{{ triage.chief_complaint if triage else '' }}</textarea>
+                    </div>
+
+                    <!-- Signos Vitales -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="bi bi-heart-pulse"></i> Signos Vitales</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <!-- Presión Arterial -->
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">
+                                        <i class="bi bi-activity"></i> Presión Arterial (mmHg)
+                                    </label>
+                                    <div class="input-group">
+                                        <input type="number" class="form-control" id="systolic" name="systolic" 
+                                               placeholder="Sistólica" min="70" max="200"
+                                               value="{{ triage.blood_pressure_systolic if triage else '' }}">
+                                        <span class="input-group-text">/</span>
+                                        <input type="number" class="form-control" id="diastolic" name="diastolic" 
+                                               placeholder="Diastólica" min="40" max="120"
+                                               value="{{ triage.blood_pressure_diastolic if triage else '' }}">
+                                    </div>
+                                    <small class="text-muted">Normal: 120/80 mmHg</small>
+                                </div>
+
+                                <!-- Frecuencia Cardíaca -->
+                                <div class="col-md-6 mb-3">
+                                    <label for="heart_rate" class="form-label">
+                                        <i class="bi bi-heart"></i> Frecuencia Cardíaca (bpm)
+                                    </label>
+                                    <input type="number" class="form-control" id="heart_rate" name="heart_rate" 
+                                           min="40" max="200" placeholder="Ej: 72"
+                                           value="{{ triage.heart_rate if triage else '' }}">
+                                    <small class="text-muted">Normal: 60-100 bpm</small>
+                                </div>
+
+                                <!-- Temperatura -->
+                                <div class="col-md-6 mb-3">
+                                    <label for="temperature" class="form-label">
+                                        <i class="bi bi-thermometer"></i> Temperatura (°C)
+                                    </label>
+                                    <input type="number" class="form-control" id="temperature" name="temperature" 
+                                           step="0.1" min="35.0" max="42.0" placeholder="Ej: 36.5"
+                                           value="{{ triage.temperature if triage else '' }}">
+                                    <small class="text-muted">Normal: 36.0 - 37.5°C</small>
+                                </div>
+
+                                <!-- Frecuencia Respiratoria -->
+                                <div class="col-md-6 mb-3">
+                                    <label for="respiratory_rate" class="form-label">
+                                        <i class="bi bi-lungs"></i> Frecuencia Respiratoria (rpm)
+                                    </label>
+                                    <input type="number" class="form-control" id="respiratory_rate" name="respiratory_rate" 
+                                           min="8" max="40" placeholder="Ej: 16"
+                                           value="{{ triage.respiratory_rate if triage else '' }}">
+                                    <small class="text-muted">Normal: 12-20 rpm</small>
+                                </div>
+
+                                <!-- Saturación de Oxígeno -->
+                                <div class="col-md-6 mb-3">
+                                    <label for="oxygen_saturation" class="form-label">
+                                        <i class="bi bi-droplet"></i> Saturación de Oxígeno (%)
+                                    </label>
+                                    <input type="number" class="form-control" id="oxygen_saturation" name="oxygen_saturation" 
+                                           min="70" max="100" placeholder="Ej: 98"
+                                           value="{{ triage.oxygen_saturation if triage else '' }}">
+                                    <small class="text-muted">Normal: ≥95%</small>
+                                </div>
+
+                                <!-- Escala de Dolor -->
+                                <div class="col-md-6 mb-3">
+                                    <label for="pain_scale" class="form-label">
+                                        <i class="bi bi-emoji-frown"></i> Escala de Dolor (0-10)
+                                    </label>
+                                    <select class="form-select" id="pain_scale" name="pain_scale">
+                                        <option value="">Seleccionar escala de dolor...</option>
+                                        <option value="0" {% if triage and triage.pain_scale == 0 %}selected{% endif %}>0 - Sin dolor</option>
+                                        <option value="1" {% if triage and triage.pain_scale == 1 %}selected{% endif %}>1 - Dolor muy leve</option>
+                                        <option value="2" {% if triage and triage.pain_scale == 2 %}selected{% endif %}>2 - Dolor leve</option>
+                                        <option value="3" {% if triage and triage.pain_scale == 3 %}selected{% endif %}>3 - Dolor leve a moderado</option>
+                                        <option value="4" {% if triage and triage.pain_scale == 4 %}selected{% endif %}>4 - Dolor moderado</option>
+                                        <option value="5" {% if triage and triage.pain_scale == 5 %}selected{% endif %}>5 - Dolor moderado a severo</option>
+                                        <option value="6" {% if triage and triage.pain_scale == 6 %}selected{% endif %}>6 - Dolor severo</option>
+                                        <option value="7" {% if triage and triage.pain_scale == 7 %}selected{% endif %}>7 - Dolor severo</option>
+                                        <option value="8" {% if triage and triage.pain_scale == 8 %}selected{% endif %}>8 - Dolor muy severo</option>
+                                        <option value="9" {% if triage and triage.pain_scale == 9 %}selected{% endif %}>9 - Dolor muy severo</option>
+                                        <option value="10" {% if triage and triage.pain_scale == 10 %}selected{% endif %}>10 - Dolor insoportable</option>
+                                    </select>
+                                    <small class="text-muted">0: Sin dolor - 10: Dolor insoportable</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Datos Antropométricos -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="bi bi-rulers"></i> Datos Antropométricos</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="weight" class="form-label">
+                                        <i class="bi bi-speedometer"></i> Peso (kg)
+                                    </label>
+                                    <input type="number" class="form-control" id="weight" name="weight" 
+                                           step="0.1" min="1.0" max="300.0" placeholder="Ej: 70.5"
+                                           value="{{ triage.weight if triage else '' }}">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="height" class="form-label">
+                                        <i class="bi bi-arrows-vertical"></i> Altura (cm)
+                                    </label>
+                                    <input type="number" class="form-control" id="height" name="height" 
+                                           min="50" max="250" placeholder="Ej: 175"
+                                           value="{{ triage.height if triage else '' }}">
+                                </div>
+                            </div>
+                            <div id="bmi-display" class="mt-2"></div>
+                        </div>
+                    </div>
+
+                    <!-- Prioridad -->
+                    <div class="mb-4">
+                        <label for="priority_level" class="form-label">
+                            <i class="bi bi-exclamation-triangle"></i> Nivel de Prioridad <span class="text-danger">*</span>
+                        </label>
+                        <select class="form-select" id="priority_level" name="priority_level" required>
+                            <option value="baja" {{ 'selected' if triage and triage.priority_level == 'baja' else '' }}>
+                                🟢 Baja - Consulta de rutina, puede esperar
+                            </option>
+                            <option value="media" {{ 'selected' if triage and triage.priority_level == 'media' else 'selected' }}>
+                                🟡 Media - Atención en tiempo razonable
+                            </option>
+                            <option value="alta" {{ 'selected' if triage and triage.priority_level == 'alta' else '' }}>
+                                🔴 Alta - Requiere atención inmediata
+                            </option>
+                        </select>
+                    </div>
+
+                    <!-- Información Médica Adicional -->
+                    <div class="row mb-4">
+                        <div class="col-md-4">
+                            <label for="allergies" class="form-label">
+                                <i class="bi bi-shield-exclamation"></i> Alergias Conocidas
+                            </label>
+                            <textarea class="form-control" id="allergies" name="allergies" rows="3"
+                                      placeholder="Ej: Penicilina, mariscos, polen...">{{ triage.allergies if triage else '' }}</textarea>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="current_medications" class="form-label">
+                                <i class="bi bi-capsule"></i> Medicamentos Actuales
+                            </label>
+                            <textarea class="form-control" id="current_medications" name="current_medications" rows="3"
+                                      placeholder="Ej: Aspirina 100mg diaria, Omeprazol...">{{ triage.current_medications if triage else '' }}</textarea>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="blood_type" class="form-label">
+                                <i class="bi bi-droplet"></i> Tipo de Sangre
+                            </label>
+                            <select class="form-select" id="blood_type" name="blood_type">
+                                <option value="">Seleccionar tipo de sangre</option>
+                                <option value="A+" {% if triage and triage.blood_type == 'A+' %}selected{% endif %}>A+</option>
+                                <option value="A-" {% if triage and triage.blood_type == 'A-' %}selected{% endif %}>A-</option>
+                                <option value="B+" {% if triage and triage.blood_type == 'B+' %}selected{% endif %}>B+</option>
+                                <option value="B-" {% if triage and triage.blood_type == 'B-' %}selected{% endif %}>B-</option>
+                                <option value="AB+" {% if triage and triage.blood_type == 'AB+' %}selected{% endif %}>AB+</option>
+                                <option value="AB-" {% if triage and triage.blood_type == 'AB-' %}selected{% endif %}>AB-</option>
+                                <option value="O+" {% if triage and triage.blood_type == 'O+' %}selected{% endif %}>O+</option>
+                                <option value="O-" {% if triage and triage.blood_type == 'O-' %}selected{% endif %}>O-</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Campos Específicos por Edad -->
+                    
+                    <!-- Sección Lactantes (0-2 años) -->
+                    <div id="lactante-fields" class="age-specific-section" style="display: none;">
+                        <h6 class="border-bottom pb-2 mb-3">
+                            <i class="bi bi-baby"></i> Evaluación Específica - Lactantes (0-2 años)
+                        </h6>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="feeding_status" class="form-label">Estado de Alimentación</label>
+                                <select class="form-select" id="feeding_status" name="feeding_status">
+                                    <option value="">Seleccionar...</option>
+                                    <option value="normal">Normal</option>
+                                    <option value="poor">Mala tolerancia</option>
+                                    <option value="vomiting">Vómitos</option>
+                                    <option value="refusing">Rechaza alimentación</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="sleep_pattern" class="form-label">Patrón de Sueño</label>
+                                <select class="form-select" id="sleep_pattern" name="sleep_pattern">
+                                    <option value="">Seleccionar...</option>
+                                    <option value="normal">Normal</option>
+                                    <option value="restless">Inquieto</option>
+                                    <option value="excessive">Excesivo</option>
+                                    <option value="poor">Dificultad para dormir</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="irritability" class="form-label">Irritabilidad/Consolabilidad</label>
+                                <select class="form-select" id="irritability" name="irritability">
+                                    <option value="">Seleccionar...</option>
+                                    <option value="calm">Tranquilo/Consolable</option>
+                                    <option value="mild_irritable">Levemente irritable</option>
+                                    <option value="inconsolable">Inconsolable</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="fontanel" class="form-label">Fontanela</label>
+                                <select class="form-select" id="fontanel" name="fontanel">
+                                    <option value="">Seleccionar...</option>
+                                    <option value="normal">Normal</option>
+                                    <option value="bulging">Abombada</option>
+                                    <option value="sunken">Hundida</option>
+                                    <option value="closed">Cerrada</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sección Preescolares (2-6 años) -->
+                    <div id="preescolar-fields" class="age-specific-section" style="display: none;">
+                        <h6 class="border-bottom pb-2 mb-3">
+                            <i class="bi bi-people"></i> Evaluación Específica - Preescolares
+                        </h6>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="psychomotor_development" class="form-label">Desarrollo Psicomotor</label>
+                                <select class="form-select" id="psychomotor_development" name="psychomotor_development">
+                                    <option value="">Seleccionar...</option>
+                                    <option value="normal">Normal para la edad</option>
+                                    <option value="delayed">Retraso aparente</option>
+                                    <option value="advanced">Avanzado para la edad</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="vaccination_status" class="form-label">Vacunación al Día</label>
+                                <select class="form-select" id="vaccination_status" name="vaccination_status">
+                                    <option value="">Seleccionar...</option>
+                                    <option value="complete">Al día</option>
+                                    <option value="incomplete">Incompleta</option>
+                                    <option value="unknown">Desconocido</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sección Escolares (6-12 años) -->
+                    <div id="escolar-fields" class="age-specific-section" style="display: none;">
+                        <h6 class="border-bottom pb-2 mb-3">
+                            <i class="bi bi-book"></i> Evaluación Específica - Escolares
+                        </h6>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="physical_activity" class="form-label">Actividad Física Reciente</label>
+                                <select class="form-select" id="physical_activity" name="physical_activity">
+                                    <option value="">Seleccionar...</option>
+                                    <option value="normal">Normal</option>
+                                    <option value="limited">Limitada por síntomas</option>
+                                    <option value="none">Sin actividad</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="school_performance" class="form-label">Rendimiento Escolar</label>
+                                <select class="form-select" id="school_performance" name="school_performance">
+                                    <option value="">Seleccionar...</option>
+                                    <option value="normal">Normal</option>
+                                    <option value="declined">Ha declinado</option>
+                                    <option value="na">No aplicable</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sección Adolescentes (12-18 años) -->
+                    <div id="adolescente-fields" class="age-specific-section" style="display: none;">
+                        <h6 class="border-bottom pb-2 mb-3">
+                            <i class="bi bi-person"></i> Evaluación Específica - Adolescentes
+                        </h6>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="privacy_required" class="form-label">Privacidad Requerida</label>
+                                <select class="form-select" id="privacy_required" name="privacy_required">
+                                    <option value="">Seleccionar...</option>
+                                    <option value="yes">Sí, requiere privacidad</option>
+                                    <option value="no">No, permite acompañante</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="minor_consent" class="form-label">Consentimiento del Menor</label>
+                                <select class="form-select" id="minor_consent" name="minor_consent">
+                                    <option value="">Seleccionar...</option>
+                                    <option value="given">Consentimiento dado</option>
+                                    <option value="refused">Rechaza tratamiento</option>
+                                    <option value="pending">Pendiente</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sección Adultos Mayores (65+ años) -->
+                    <div id="adulto-mayor-fields" class="age-specific-section" style="display: none;">
+                        <h6 class="border-bottom pb-2 mb-3">
+                            <i class="bi bi-person-heart"></i> Evaluación Específica - Adultos Mayores (65+ años)
+                        </h6>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="mobility_status" class="form-label">Estado de Movilidad</label>
+                                <select class="form-select" id="mobility_status" name="mobility_status">
+                                    <option value="">Seleccionar...</option>
+                                    <option value="independent">Independiente</option>
+                                    <option value="walker">Con bastón/andador</option>
+                                    <option value="wheelchair">Silla de ruedas</option>
+                                    <option value="assisted">Requiere asistencia</option>
+                                    <option value="bedridden">Postrado</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="cognitive_status" class="form-label">Estado Cognitivo</label>
+                                <select class="form-select" id="cognitive_status" name="cognitive_status">
+                                    <option value="">Seleccionar...</option>
+                                    <option value="alert">Alerta y orientado</option>
+                                    <option value="confused">Confuso</option>
+                                    <option value="forgetful">Olvidos frecuentes</option>
+                                    <option value="disoriented">Desorientado</option>
+                                    <option value="dementia">Demencia conocida</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="fall_risk" class="form-label">Riesgo de Caídas</label>
+                                <select class="form-select" id="fall_risk" name="fall_risk">
+                                    <option value="">Seleccionar...</option>
+                                    <option value="low">Bajo riesgo</option>
+                                    <option value="moderate">Riesgo moderado</option>
+                                    <option value="high">Alto riesgo</option>
+                                    <option value="previous_falls">Caídas previas</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="functional_status" class="form-label">Estado Funcional</label>
+                                <select class="form-select" id="functional_status" name="functional_status">
+                                    <option value="">Seleccionar...</option>
+                                    <option value="independent">Totalmente independiente</option>
+                                    <option value="partial_assistance">Asistencia parcial</option>
+                                    <option value="total_assistance">Asistencia total</option>
+                                    <option value="deteriorated">Deterioro funcional</option>
+                                </select>
+                            </div>
+                            <div class="col-12 mb-3">
+                                <label for="chronic_conditions" class="form-label">Condiciones Crónicas Conocidas</label>
+                                <textarea class="form-control" id="chronic_conditions" name="chronic_conditions" rows="2"
+                                          placeholder="Ej: Hipertensión, diabetes, artritis, problemas cardíacos..."></textarea>
+                            </div>
+                            <div class="col-12 mb-3">
+                                <label for="medication_polypharmacy" class="form-label">Medicamentos Actuales (Polifarmacia)</label>
+                                <textarea class="form-control" id="medication_polypharmacy" name="medication_polypharmacy" rows="3"
+                                          placeholder="Listar todos los medicamentos actuales, dosis y frecuencia..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sección Menores de Edad (Todos < 18 años) -->
+                    <div id="minor-fields" class="age-specific-section" style="display: none;">
+                        <h6 class="border-bottom pb-2 mb-3">
+                            <i class="bi bi-shield-check"></i> Información del Tutor Legal (Obligatorio)
+                        </h6>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="guardian_present" class="form-label">Tutor Presente <span class="text-danger">*</span></label>
+                                <select class="form-select" id="guardian_present" name="guardian_present">
+                                    <option value="">Seleccionar...</option>
+                                    <option value="yes">Sí, presente</option>
+                                    <option value="no">No presente</option>
+                                    <option value="authorized_adult">Adulto autorizado</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="treatment_authorization" class="form-label">Autorización para Tratamiento <span class="text-danger">*</span></label>
+                                <select class="form-select" id="treatment_authorization" name="treatment_authorization">
+                                    <option value="">Seleccionar...</option>
+                                    <option value="given">Autorización dada</option>
+                                    <option value="pending">Pendiente</option>
+                                    <option value="emergency">Situación de emergencia</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Observaciones de Enfermería -->
+                    <div class="mb-4">
+                        <label for="nurse_observations" class="form-label">
+                            <i class="bi bi-journal-text"></i> Observaciones de Enfermería
+                        </label>
+                        <textarea class="form-control" id="nurse_observations" name="nurse_observations" rows="3"
+                                  placeholder="Observaciones adicionales sobre el estado del paciente...">{{ triage.nurse_observations if triage else '' }}</textarea>
+                    </div>
+
+                    <!-- Opciones de Guardado -->
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="complete_triage" name="complete_triage" value="1">
+                            <label class="form-check-label" for="complete_triage">
+                                <strong>Marcar triage como completado</strong> (el paciente estará listo para consulta médica)
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Botones de Acción -->
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{{ url_for('nurse.triage_list') }}" class="btn btn-secondary me-md-2">
+                            <i class="bi bi-x-circle"></i> Cancelar
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle"></i>
+                            {% if triage %}Actualizar{% else %}Registrar{% endif %} Triage
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Panel Lateral con Información -->
+    <div class="col-lg-4">
+        {% if triage %}
+        <div class="card mb-3">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-info-circle"></i> Información del Triage</h6>
+            </div>
+            <div class="card-body">
+                <p><strong>Estado:</strong> 
+                    <span class="badge bg-{{ 'warning' if triage.status == 'pending' else 'success' }}">
+                        {{ 'Pendiente' if triage.status == 'pending' else 'Completado' }}
+                    </span>
+                </p>
+                <p><strong>Enfermera:</strong> {{ triage.nurse.full_name }}</p>
+                <p><strong>Creado:</strong> {{ triage.created_at.strftime('%d/%m/%Y %H:%M') }}</p>
+                {% if triage.completed_at %}
+                <p><strong>Completado:</strong> {{ triage.completed_at.strftime('%d/%m/%Y %H:%M') }}</p>
+                {% endif %}
+                {% if triage.bmi %}
+                <p><strong>IMC:</strong> {{ triage.bmi }} 
+                    <small class="text-muted">
+                        {% if triage.bmi < 18.5 %}(Bajo peso)
+                        {% elif triage.bmi < 25 %}(Normal)
+                        {% elif triage.bmi < 30 %}(Sobrepeso)
+                        {% else %}(Obesidad){% endif %}
+                    </small>
+                </p>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Rangos Normales de Referencia -->
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-clipboard-data"></i> Rangos Normales</h6>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled mb-0">
+                    <li><strong>Presión Arterial:</strong> 120/80 mmHg</li>
+                    <li><strong>Frecuencia Cardíaca:</strong> 60-100 bpm</li>
+                    <li><strong>Temperatura:</strong> 36.0-37.5°C</li>
+                    <li><strong>Frecuencia Respiratoria:</strong> 12-20 rpm</li>
+                    <li><strong>Saturación O₂:</strong> ≥95%</li>
+                    <li><strong>IMC Normal:</strong> 18.5-24.9</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Información de Flujo de Pago -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-credit-card"></i> Flujo de Pago</h6>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info mb-0">
+                    <strong><i class="bi bi-info-circle"></i> Importante:</strong>
+                    <p class="mb-2">Solo se pueden crear triages para:</p>
+                    <ul class="mb-0">
+                        <li>Pacientes con pago confirmado</li>
+                        <li>Citas marcadas como "Pagadas"</li>
+                        <li>Facturas en estado "Paid"</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('triageForm');
+    const weightInput = document.getElementById('weight');
+    const heightInput = document.getElementById('height');
+    const bmiDisplay = document.getElementById('bmi-display');
+    
+    // Calcular IMC automáticamente
+    function calculateBMI() {
+        const weight = parseFloat(weightInput.value);
+        const height = parseFloat(heightInput.value);
+        
+        if (weight && height) {
+            const heightM = height / 100;
+            const bmi = (weight / (heightM * heightM)).toFixed(1);
+            
+            let category = '';
+            let color = '';
+            
+            if (bmi < 18.5) {
+                category = 'Bajo peso';
+                color = 'text-info';
+            } else if (bmi < 25) {
+                category = 'Normal';
+                color = 'text-success';
+            } else if (bmi < 30) {
+                category = 'Sobrepeso';
+                color = 'text-warning';
+            } else {
+                category = 'Obesidad';
+                color = 'text-danger';
+            }
+            
+            bmiDisplay.innerHTML = `<div class="alert alert-light">
+                <strong>IMC:</strong> ${bmi} <span class="${color}">(${category})</span>
+            </div>`;
+        } else {
+            bmiDisplay.innerHTML = '';
+        }
+    }
+    
+    weightInput.addEventListener('input', calculateBMI);
+    heightInput.addEventListener('input', calculateBMI);
+    
+    // Calcular al cargar si ya hay valores
+    calculateBMI();
+    
+    // Validación del formulario
+    form.addEventListener('submit', function(e) {
+        const requiredFields = form.querySelectorAll('[required]');
+        let isValid = true;
+        
+        requiredFields.forEach(function(field) {
+            if (!field.value.trim()) {
+                isValid = false;
+                field.classList.add('is-invalid');
+            } else {
+                field.classList.remove('is-invalid');
+            }
+        });
+        
+        if (!isValid) {
+            e.preventDefault();
+            alert('Por favor complete todos los campos obligatorios.');
+        }
+    });
+    
+    // Limpiar clase de error cuando el usuario empiece a escribir
+    form.querySelectorAll('input, select, textarea').forEach(function(field) {
+        field.addEventListener('input', function() {
+            this.classList.remove('is-invalid');
+        });
+    });
+    
+    // Inicializar el formulario limpio al cargar la página
+    initializeCleanForm();
+    
+    // Si hay un paciente pre-seleccionado, actualizar el formulario
+    const patientSelect = document.getElementById('patient_id');
+    if (patientSelect && patientSelect.value) {
+        updateFormByAge();
+    }
+});
+
+// Función para inicializar el formulario completamente limpio
+function initializeCleanForm() {
+    console.log('Initializing clean form');
+    
+    // Limpiar todo
+    clearPreviousPatientData();
+    hideAllAgeSpecificSections();
+    resetFormFields();
+    
+    // Asegurar que el campo de paciente esté en estado inicial
+    const patientSelect = document.getElementById('patient_id');
+    if (patientSelect && !patientSelect.value) {
+        patientSelect.value = '';
+    }
+    
+    // Limpiar cualquier alerta previa
+    const existingAlerts = document.querySelectorAll('.alert-warning, .alert-danger, .alert-success');
+    existingAlerts.forEach(alert => {
+        if (alert.textContent.includes('cita') || alert.textContent.includes('Cita')) {
+            alert.remove();
+        }
+    });
+    
+    console.log('Form initialized clean');
+}
+
+// Función para actualizar el formulario según la edad del paciente
+function updateFormByAge() {
+    console.log('updateFormByAge called');
+    const patientSelect = document.getElementById('patient_id');
+    if (!patientSelect) return;
+    
+    // *** SIEMPRE LIMPIAR TODO PRIMERO ***
+    clearPreviousPatientData();
+    hideAllAgeSpecificSections();
+    resetFormFields();
+    
+    const selectedOption = patientSelect.options[patientSelect.selectedIndex];
+    const ageGroupInfo = document.getElementById('age-group-info');
+    if (!ageGroupInfo) return;
+    
+    // Si no hay paciente seleccionado, mantener todo oculto y limpio
+    if (!selectedOption.value) {
+        ageGroupInfo.style.display = 'none';
+        console.log('No patient selected - form cleared');
+        return;
+    }
+    
+    const age = parseInt(selectedOption.dataset.age);
+    const ageGroup = selectedOption.dataset.ageGroup;
+    const ageLabel = selectedOption.dataset.ageLabel;
+    const patientId = selectedOption.value;
+    
+    console.log('Patient data:', {age, ageGroup, ageLabel, patientId});
+    
+    // Mostrar información del grupo etario
+    ageGroupInfo.style.display = 'block';
+    
+    const ageGroupLabel = document.getElementById('age-group-label');
+    if (ageGroupLabel) {
+        ageGroupLabel.textContent = ageLabel;
+    }
+    
+    // Configurar campos según grupo etario
+    configureFieldsByAgeGroup(ageGroup, age);
+    
+    // Actualizar instrucciones específicas
+    updateAgeSpecificInstructions(ageGroup, age);
+    
+    // *** CARGAR NUEVA CITA DEL PACIENTE SELECCIONADO ***
+    loadPatientAppointment(patientId);
+}
+
+// Función para limpiar completamente los datos del paciente anterior
+function clearPreviousPatientData() {
+    console.log('Clearing previous patient data');
+    
+    // Limpiar campo de cita asociada
+    const appointmentSelect = document.getElementById('appointment_id');
+    if (appointmentSelect) {
+        appointmentSelect.innerHTML = '<option value="">Seleccione primero un paciente...</option>';
+        appointmentSelect.disabled = false;
+        appointmentSelect.value = '';
+    }
+    
+    // Limpiar información de la cita mostrada
+    const appointmentInfo = document.getElementById('appointment-info');
+    if (appointmentInfo) {
+        appointmentInfo.remove();
+    }
+    
+    // Limpiar cualquier alerta de cita previa
+    const existingAlerts = document.querySelectorAll('.alert-warning, .alert-success');
+    existingAlerts.forEach(alert => {
+        // Solo eliminar alertas que contengan texto sobre citas
+        if (alert.textContent.includes('cita') || alert.textContent.includes('Cita')) {
+            alert.remove();
+        }
+    });
+    
+    // Limpiar información del grupo etario
+    const ageGroupInfo = document.getElementById('age-group-info');
+    if (ageGroupInfo) {
+        ageGroupInfo.style.display = 'none';
+    }
+    
+    const ageGroupLabel = document.getElementById('age-group-label');
+    if (ageGroupLabel) {
+        ageGroupLabel.textContent = '';
+    }
+    
+    const ageSpecificInstructions = document.getElementById('age-specific-instructions');
+    if (ageSpecificInstructions) {
+        ageSpecificInstructions.textContent = '';
+    }
+    
+    console.log('Previous patient data cleared');
+}
+
+// Función para cargar automáticamente la cita pagada del paciente
+function loadPatientAppointment(patientId) {
+    const appointmentSelect = document.getElementById('appointment_id');
+    if (!appointmentSelect) return;
+    
+    console.log('Loading appointment for patient:', patientId);
+    
+    // Mostrar indicador de carga
+    appointmentSelect.innerHTML = '<option value="">Cargando cita...</option>';
+    appointmentSelect.disabled = true;
+    
+    // Limpiar cualquier información de cita previa
+    const appointmentInfo = document.getElementById('appointment-info');
+    if (appointmentInfo) {
+        appointmentInfo.remove();
+    }
+    
+    // Hacer petición AJAX
+    fetch(`/nurse/api/patient/${patientId}/paid-appointment`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Appointment data received:', data);
+            
+            if (data.success && data.appointment) {
+                // Llenar con la cita encontrada
+                appointmentSelect.innerHTML = `
+                    <option value="${data.appointment.id}" selected>
+                        ${data.appointment.date_time} - ${data.appointment.doctor_name} - ${data.appointment.specialty}
+                        <span class="text-success">(Pagado)</span>
+                    </option>
+                `;
+                appointmentSelect.disabled = false;
+                
+                // Mostrar información adicional de la cita
+                showAppointmentInfo(data.appointment);
+                
+                console.log('Appointment loaded successfully');
+            } else {
+                // No se encontró cita pagada
+                appointmentSelect.innerHTML = '<option value="">Sin cita pagada para hoy</option>';
+                appointmentSelect.disabled = true;
+                
+                console.log('No paid appointment found:', data.message);
+                
+                // Mostrar alerta específica
+                showAppointmentAlert('warning', 
+                    `Este paciente no tiene citas pagadas para hoy. ${data.message || 'Verifique que haya realizado el pago.'}`);
+            }
+        })
+        .catch(error => {
+            console.error('Error al cargar cita del paciente:', error);
+            appointmentSelect.innerHTML = '<option value="">Error al cargar cita</option>';
+            appointmentSelect.disabled = true;
+            
+            // Mostrar alerta de error
+            showAppointmentAlert('danger', 
+                'Error al cargar la información de la cita. Intente recargar la página.');
+        });
+}
+
+// Función para mostrar alertas relacionadas con citas
+function showAppointmentAlert(type, message) {
+    // Primero limpiar alertas previas
+    const existingAlerts = document.querySelectorAll('.alert-warning, .alert-danger');
+    existingAlerts.forEach(alert => {
+        if (alert.textContent.includes('cita') || alert.textContent.includes('Cita')) {
+            alert.remove();
+        }
+    });
+    
+    // Crear nueva alerta
+    const alertHtml = `
+        <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle"></i>
+            <strong>Atención:</strong> ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+    
+    // Insertar la alerta después del header
+    const cardBody = document.querySelector('.card-body');
+    if (cardBody) {
+        cardBody.insertAdjacentHTML('afterbegin', alertHtml);
+    }
+}
+
+// Función para mostrar información adicional de la cita
+function showAppointmentInfo(appointment) {
+    console.log('Showing appointment info:', appointment);
+    
+    // Limpiar cualquier información de cita previa
+    const existingAppointmentInfo = document.getElementById('appointment-info');
+    if (existingAppointmentInfo) {
+        existingAppointmentInfo.remove();
+    }
+    
+    // Encontrar el contenedor del campo de cita
+    const appointmentContainer = document.getElementById('appointment_id').closest('.col-md-6');
+    if (!appointmentContainer) return;
+    
+    // Crear nuevo contenedor de información
+    const appointmentInfo = document.createElement('div');
+    appointmentInfo.id = 'appointment-info';
+    appointmentInfo.className = 'mt-2';
+    
+    // Llenar con la información de la cita
+    appointmentInfo.innerHTML = `
+        <div class="alert alert-success">
+            <strong><i class="bi bi-check-circle"></i> Cita Confirmada:</strong><br>
+            <small>
+                <strong>Hora:</strong> ${appointment.date_time}<br>
+                <strong>Doctor:</strong> ${appointment.doctor_name}<br>
+                <strong>Especialidad:</strong> ${appointment.specialty}<br>
+                <strong>Motivo:</strong> ${appointment.reason}
+            </small>
+        </div>
+    `;
+    
+    // Agregar al contenedor
+    appointmentContainer.appendChild(appointmentInfo);
+    
+    console.log('Appointment info displayed');
+}
+
+function configureFieldsByAgeGroup(ageGroup, age) {
+    console.log('configureFieldsByAgeGroup called with:', {ageGroup, age});
+    
+    // Elementos del formulario - TODOS los campos vitales
+    const systolicField = document.getElementById('systolic');
+    const diastolicField = document.getElementById('diastolic');
+    const heartRateField = document.getElementById('heart_rate');
+    const temperatureField = document.getElementById('temperature');
+    const weightField = document.getElementById('weight');
+    const heightField = document.getElementById('height');
+    const oxygenSaturationField = document.getElementById('oxygen_saturation');
+    const respiratoryRateField = document.getElementById('respiratory_rate');
+    const painScaleField = document.getElementById('pain_scale');
+    
+    console.log('Form fields found:', {
+        systolicField: !!systolicField,
+        diastolicField: !!diastolicField,
+        heartRateField: !!heartRateField,
+        temperatureField: !!temperatureField,
+        weightField: !!weightField,
+        heightField: !!heightField,
+        oxygenSaturationField: !!oxygenSaturationField,
+        respiratoryRateField: !!respiratoryRateField,
+        painScaleField: !!painScaleField
+    });
+    
+    // Ocultar todas las secciones específicas por edad primero
+    hideAllAgeSpecificSections();
+    
+    // Resetear todos los campos
+    resetFormFields();
+    
+    // Configuración por grupo etario según el documento
+    if (ageGroup === 'lactante') {
+        console.log('Configuring for lactante (0-2 años)');
+        
+        // ========== CAMPOS BLOQUEADOS/DESHABILITADOS ==========
+        disableField(systolicField, 'No confiable hasta los 2 años');
+        disableField(diastolicField, 'No confiable hasta los 2 años');
+        disableField(oxygenSaturationField, 'Difícil de medir confiablemente en lactantes');
+        disableField(respiratoryRateField, 'Se evalúa por observación, no número exacto');
+        
+        // ========== CAMPOS CRÍTICOS/OBLIGATORIOS ==========
+        enableField(heartRateField, true, 'CRÍTICO - Normal: 100-160 bpm');
+        enableField(temperatureField, true, 'CRÍTICO - Normal: 36.5-37.8°C');
+        enableField(weightField, true, 'CRÍTICO para desarrollo');
+        enableField(heightField, true, 'CRÍTICO para desarrollo');
+        
+        // ========== CAMPOS ESPECÍFICOS VISIBLES ==========
+        showAgeSpecificSection('lactante-fields');
+        showAgeSpecificSection('minor-fields');
+        
+        // ========== CAMPOS OBLIGATORIOS PARA MENORES ==========
+        setMinorFieldsRequired(true);
+        
+        // ========== ESCALA DE DOLOR ==========
+        configurePainScale('behavioral');
+        
+    } else if (ageGroup === 'preescolar') {
+        console.log('Configuring for preescolar (2-6 años), age:', age);
+        
+        // ========== CAMPOS BLOQUEADOS/DESHABILITADOS ==========
+        if (age < 3) {
+            disableField(systolicField, 'No confiable hasta los 3 años');
+            disableField(diastolicField, 'No confiable hasta los 3 años');
+        } else {
+            // ========== CAMPOS CRÍTICOS/OBLIGATORIOS (≥3 años) ==========
+            enableField(systolicField, true, 'CRÍTICO - Normal: 85-110 mmHg');
+            enableField(diastolicField, true, 'CRÍTICO - Normal: 55-75 mmHg');
+        }
+        
+        // ========== CAMPOS CRÍTICOS/OBLIGATORIOS ==========
+        enableField(heartRateField, true, 'CRÍTICO - Normal: 90-130 bpm');
+        enableField(temperatureField, true, 'CRÍTICO - Normal: 36.0-37.5°C');
+        enableField(weightField, true, 'Importante para desarrollo');
+        enableField(heightField, true, 'Importante para desarrollo');
+        
+        // ========== CAMPOS UNIVERSALES VISIBLES ==========
+        enableField(oxygenSaturationField, false, 'Normal: ≥95%');
+        enableField(respiratoryRateField, false, 'Normal: 12-20 rpm');
+        
+        // ========== CAMPOS ESPECÍFICOS VISIBLES ==========
+        showAgeSpecificSection('preescolar-fields');
+        showAgeSpecificSection('minor-fields');
+        
+        // ========== CAMPOS OBLIGATORIOS PARA MENORES ==========
+        setMinorFieldsRequired(true);
+        
+        // ========== ESCALA DE DOLOR ==========
+        configurePainScale('faces');
+        
+    } else if (ageGroup === 'escolar') {
+        console.log('Configuring for escolar (6-12 años)');
+        
+        // ========== CAMPOS CRÍTICOS/OBLIGATORIOS ==========
+        enableField(systolicField, true, 'CRÍTICO - Normal: 90-120 mmHg');
+        enableField(diastolicField, true, 'CRÍTICO - Normal: 60-80 mmHg');
+        enableField(heartRateField, true, 'CRÍTICO - Normal: 70-110 bpm');
+        enableField(temperatureField, true, 'CRÍTICO - Normal: 36.0-37.5°C');
+        enableField(weightField, true, 'Importante');
+        enableField(heightField, true, 'Importante');
+        
+        // ========== CAMPOS UNIVERSALES VISIBLES ==========
+        enableField(oxygenSaturationField, false, 'Normal: ≥95%');
+        enableField(respiratoryRateField, false, 'Normal: 12-20 rpm');
+        
+        // ========== CAMPOS ESPECÍFICOS VISIBLES ==========
+        showAgeSpecificSection('escolar-fields');
+        showAgeSpecificSection('minor-fields');
+        
+        // ========== CAMPOS OBLIGATORIOS PARA MENORES ==========
+        setMinorFieldsRequired(true);
+        
+        // ========== ESCALA DE DOLOR ==========
+        configurePainScale('numeric');
+        
+    } else if (ageGroup === 'adolescente') {
+        console.log('Configuring for adolescente (12-18 años)');
+        
+        // ========== CAMPOS OBLIGATORIOS ==========
+        enableField(systolicField, true, 'CRÍTICO - Normal: 90-130 mmHg');
+        enableField(diastolicField, true, 'CRÍTICO - Normal: 60-85 mmHg');
+        enableField(heartRateField, true, 'CRÍTICO - Normal: 60-100 bpm');
+        enableField(temperatureField, true, 'CRÍTICO - Normal: 36.0-37.5°C');
+        
+        // ========== CAMPOS OPCIONALES ==========
+        enableField(weightField, false, 'Opcional (pueden ser sensibles)');
+        enableField(heightField, false, 'Opcional (pueden ser sensibles)');
+        
+        // ========== CAMPOS UNIVERSALES VISIBLES ==========
+        enableField(oxygenSaturationField, false, 'Normal: ≥95%');
+        enableField(respiratoryRateField, false, 'Normal: 12-20 rpm');
+        
+        // ========== CAMPOS ESPECÍFICOS VISIBLES ==========
+        showAgeSpecificSection('adolescente-fields');
+        showAgeSpecificSection('minor-fields');
+        
+        // ========== CAMPOS OBLIGATORIOS PARA MENORES ==========
+        setMinorFieldsRequired(true);
+        
+        // ========== ESCALA DE DOLOR ==========
+        configurePainScale('numeric');
+        
+    } else if (ageGroup === 'adulto_mayor') {
+        // ========== ADULTOS MAYORES (65+ años) ==========
+        console.log('Configuring for adultos mayores (65+ años)');
+        
+        // ========== CAMPOS OBLIGATORIOS CON TOLERANCIAS ESPECIALES ==========
+        enableField(systolicField, true, 'CRÍTICO - Tolerancia hasta 140 mmHg');
+        enableField(diastolicField, true, 'CRÍTICO - Tolerancia hasta 90 mmHg');
+        enableField(heartRateField, true, 'CRÍTICO - Normal: 50-90 bpm (puede ser más baja)');
+        enableField(temperatureField, true, 'CRÍTICO - Normal: 35.5-37.0°C');
+        
+        // ========== CAMPOS IMPORTANTES ==========
+        enableField(weightField, true, 'Importante - vigilar pérdida de peso');
+        enableField(heightField, false, 'Opcional - puede disminuir con edad');
+        
+        // ========== CAMPOS UNIVERSALES VISIBLES ==========
+        enableField(oxygenSaturationField, false, 'Normal: ≥90% (tolerancia menor)');
+        enableField(respiratoryRateField, false, 'Normal: 12-20 rpm');
+        
+        // ========== CAMPOS ESPECÍFICOS VISIBLES ==========
+        showAgeSpecificSection('adulto-mayor-fields');
+        
+        // ========== CAMPOS OBLIGATORIOS PARA MENORES ==========
+        setMinorFieldsRequired(false); // Adultos no requieren tutor
+        
+        // ========== ESCALA DE DOLOR ==========
+        configurePainScale('numeric');
+        
+    } else {
+        // ========== ADULTOS (18-65 años) ==========
+        console.log('Configuring for adultos (18-65 años)');
+        
+        // ========== CAMPOS OBLIGATORIOS ==========
+        enableField(systolicField, true, 'CRÍTICO - Normal: 90-140 mmHg');
+        enableField(diastolicField, true, 'CRÍTICO - Normal: 60-90 mmHg');
+        enableField(heartRateField, true, 'CRÍTICO - Normal: 60-100 bpm');
+        enableField(temperatureField, true, 'CRÍTICO - Normal: 36.0-37.5°C');
+        
+        // ========== CAMPOS OPCIONALES ==========
+        enableField(weightField, false, 'Opcional');
+        enableField(heightField, false, 'Opcional');
+        
+        // ========== CAMPOS UNIVERSALES VISIBLES ==========
+        enableField(oxygenSaturationField, false, 'Normal: ≥95%');
+        enableField(respiratoryRateField, false, 'Normal: 12-20 rpm');
+        
+        // ========== CAMPOS OBLIGATORIOS PARA MENORES ==========
+        setMinorFieldsRequired(false); // Adultos no requieren tutor
+        
+        // ========== ESCALA DE DOLOR ==========
+        configurePainScale('numeric');
+    }
+}
+
+// Función para configurar campos obligatorios para menores de edad
+function setMinorFieldsRequired(required = true) {
+    const guardianField = document.getElementById('guardian_present');
+    const treatmentAuthField = document.getElementById('treatment_authorization');
+    
+    if (guardianField) {
+        guardianField.required = required;
+    }
+    
+    if (treatmentAuthField) {
+        treatmentAuthField.required = required;
+    }
+    
+    console.log('Minor fields required:', required);
+}
+
+function enableField(field, required = false, placeholder = '') {
+    if (!field) return;
+    field.disabled = false;
+    field.required = required;
+    field.style.backgroundColor = '';
+    
+    if (placeholder) {
+        field.placeholder = placeholder;
+        field.title = placeholder;
+    }
+    
+    // Agregar indicador visual de requerido
+    const label = document.querySelector(`label[for="${field.id}"]`);
+    if (label && required) {
+        if (!label.querySelector('.text-danger')) {
+            label.appendChild(document.createTextNode(' '));
+            const span = document.createElement('span');
+            span.className = 'text-danger';
+            span.textContent = '*';
+            label.appendChild(span);
+        }
+    }
+}
+
+function disableField(field, reason = '') {
+    if (!field) return;
+    field.disabled = true;
+    field.required = false;
+    field.value = '';
+    field.style.backgroundColor = '#f8f9fa';
+    
+    if (reason) {
+        field.placeholder = reason;
+        field.title = reason;
+    }
+    
+    // Remover indicador de requerido
+    const label = document.querySelector(`label[for="${field.id}"]`);
+    if (label) {
+        const span = label.querySelector('.text-danger');
+        if (span) span.remove();
+    }
+}
+
+function resetFormFields() {
+    console.log('resetFormFields called');
+    
+    // Resetear campos de signos vitales
+    const vitalFields = ['systolic', 'diastolic', 'heart_rate', 'temperature', 'weight', 'height', 'oxygen_saturation', 'respiratory_rate'];
+    vitalFields.forEach(fieldId => {
+        const field = document.getElementById(fieldId);
+        if (field) {
+            field.disabled = false;
+            field.required = false;
+            field.style.backgroundColor = '';
+            field.placeholder = '';
+            field.title = '';
+            field.value = '';  // Limpiar el valor
+            
+            // Limpiar indicador de requerido
+            const label = document.querySelector(`label[for="${fieldId}"]`);
+            if (label) {
+                const span = label.querySelector('.text-danger');
+                if (span) span.remove();
+            }
+            
+            console.log(`Reset field: ${fieldId}`);
+        }
+    });
+    
+    // Resetear campos específicos por edad
+    const ageSpecificFields = [
+        'feeding_status', 'sleep_pattern', 'irritability', 'fontanel',
+        'psychomotor_development', 'vaccination_status',
+        'school_performance', 'physical_activity', 
+        'privacy_required', 'minor_consent',
+        'mobility_status', 'cognitive_status', 'fall_risk', 'functional_status', 
+        'chronic_conditions', 'medication_polypharmacy',
+        'guardian_present', 'treatment_authorization'
+    ];
+    
+    ageSpecificFields.forEach(fieldId => {
+        const field = document.getElementById(fieldId);
+        if (field) {
+            field.value = '';
+            field.disabled = false;
+            field.required = false;
+            console.log(`Reset age-specific field: ${fieldId}`);
+        }
+    });
+    
+    // Resetear otros campos del formulario
+    const otherFields = ['chief_complaint', 'pain_scale', 'allergies', 'current_medications', 'blood_type', 'nurse_observations'];
+    otherFields.forEach(fieldId => {
+        const field = document.getElementById(fieldId);
+        if (field) {
+            field.value = '';
+            field.disabled = false;
+            field.required = false;
+            console.log(`Reset other field: ${fieldId}`);
+        }
+    });
+    
+    // Resetear campos de menores de edad
+    setMinorFieldsRequired(false);
+    
+    // Resetear escala de dolor a estándar
+    configurePainScale('standard');
+    
+    // Limpiar display del IMC
+    const bmiDisplay = document.getElementById('bmi-display');
+    if (bmiDisplay) {
+        bmiDisplay.innerHTML = '';
+    }
+    
+    console.log('All form fields reset');
+}
+
+function configurePainScale(type) {
+    const painScaleField = document.getElementById('pain_scale');
+    const painLabel = document.querySelector('label[for="pain_scale"]');
+    
+    if (!painScaleField || !painLabel) return;
+    
+    if (type === 'behavioral') {
+        painLabel.innerHTML = '<i class="bi bi-emoji-frown"></i> Evaluación de Dolor (Conductual)';
+        painScaleField.innerHTML = `
+            <option value="">Seleccionar...</option>
+            <option value="0">Sin dolor aparente</option>
+            <option value="3">Llanto leve/quejidos</option>
+            <option value="6">Llanto intenso/irritabilidad</option>
+            <option value="10">Llanto inconsolable</option>
+        `;
+    } else if (type === 'faces') {
+        painLabel.innerHTML = '<i class="bi bi-emoji-smile"></i> Escala de Dolor (Caritas)';
+        painScaleField.innerHTML = `
+            <option value="">Seleccionar...</option>
+            <option value="0">😊 Sin dolor</option>
+            <option value="2">😐 Poco dolor</option>
+            <option value="4">😟 Duele un poco</option>
+            <option value="6">😣 Duele más</option>
+            <option value="8">😢 Duele mucho</option>
+            <option value="10">😭 Duele muchísimo</option>
+        `;
+    } else {
+        painLabel.innerHTML = '<i class="bi bi-speedometer"></i> Escala de Dolor (0-10)';
+        painScaleField.innerHTML = `
+            <option value="">Seleccionar escala de dolor...</option>
+            <option value="0">0 - Sin dolor</option>
+            <option value="1">1 - Dolor muy leve</option>
+            <option value="2">2 - Dolor leve</option>
+            <option value="3">3 - Dolor leve a moderado</option>
+            <option value="4">4 - Dolor moderado</option>
+            <option value="5">5 - Dolor moderado a severo</option>
+            <option value="6">6 - Dolor severo</option>
+            <option value="7">7 - Dolor severo</option>
+            <option value="8">8 - Dolor muy severo</option>
+            <option value="9">9 - Dolor muy severo</option>
+            <option value="10">10 - Dolor insoportable</option>
+        `;
+    }
+}
+
+function hideAllAgeSpecificSections() {
+    console.log('hideAllAgeSpecificSections called');
+    // Ocultar todas las secciones específicas por edad
+    const sections = [
+        'lactante-fields',
+        'preescolar-fields', 
+        'escolar-fields',
+        'adolescente-fields',
+        'adulto-mayor-fields',
+        'minor-fields'
+    ];
+    
+    sections.forEach(sectionId => {
+        const section = document.getElementById(sectionId);
+        if (section) {
+            section.style.display = 'none';
+            console.log(`Hidden section: ${sectionId}`);
+        }
+    });
+    
+    // También ocultar el info de grupo etario
+    const ageGroupInfo = document.getElementById('age-group-info');
+    if (ageGroupInfo) {
+        ageGroupInfo.style.display = 'none';
+    }
+}
+
+function showAgeSpecificSection(sectionId) {
+    const section = document.getElementById(sectionId);
+    if (section) {
+        section.style.display = 'block';
+    }
+}
+
+function updateAgeSpecificInstructions(ageGroup, age) {
+    const instructionsElement = document.getElementById('age-specific-instructions');
+    if (!instructionsElement) return;
+    
+    let instructions = '';
+    
+    switch (ageGroup) {
+        case 'lactante':
+            instructions = '🍼 Lactante (0-2 años): Evaluación especial. Peso y talla críticos. Temperatura muy importante. No se evalúa presión arterial.';
+            break;
+        case 'preescolar':
+            instructions = age >= 3 
+                ? '🧒 Preescolar: Todos los signos vitales. Escala de dolor con caritas. Presencia del tutor obligatoria.'
+                : '👶 Preescolar menor: Sin presión arterial. Evaluación gentil. Escala de dolor conductual.';
+            break;
+        case 'escolar':
+            instructions = '📚 Escolar: Evaluación completa. Comunicación directa posible. Explicar procedimientos.';
+            break;
+        case 'adolescente':
+            instructions = '🧑‍🎓 Adolescente: Evaluación similar a adulto. Considerar privacidad. Presencia opcional del tutor.';
+            break;
+        case 'adulto_mayor':
+            instructions = '👴 Adulto Mayor (65+ años): Tolerancias especiales. Vigilar polifarmacia. Considerar comorbilidades.';
+            break;
+        default:
+            instructions = '👨‍⚕️ Adulto (18-65 años): Evaluación estándar completa.';
+    }
+    
+    instructionsElement.textContent = instructions;
+}
+</script>
+
+<style>
+.form-control:focus, .form-select:focus {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+}
+
+.is-invalid {
+    border-color: #dc3545;
+}
+
+.card-header h6 {
+    color: #495057;
+}
+
+.alert-light {
+    background-color: #f8f9fa;
+    border-color: #dee2e6;
+}
+</style>
+
+{% if selected_appointment %}
+<script>
+// Pre-seleccionar la cita cuando se viene desde el dashboard
+document.addEventListener('DOMContentLoaded', function() {
+    // Pre-seleccionar el paciente
+    const patientSelect = document.getElementById('patient_id');
+    const patientId = "{{ selected_appointment.patient_id }}";
+    
+    if (patientSelect && patientId) {
+        patientSelect.value = patientId;
+        // Disparar el evento change para que se actualice el formulario
+        patientSelect.dispatchEvent(new Event('change'));
+        
+        // Esperar un poco para que se carguen las citas del paciente
+        setTimeout(function() {
+            const appointmentSelect = document.getElementById('appointment_id');
+            const appointmentId = "{{ selected_appointment.id }}";
+            
+            if (appointmentSelect && appointmentId) {
+                appointmentSelect.value = appointmentId;
+                // Disparar el evento change para mostrar la información de la cita
+                appointmentSelect.dispatchEvent(new Event('change'));
+            }
+        }, 500);
+    }
+});
+</script>
+{% endif %}
+
+{% endblock %}

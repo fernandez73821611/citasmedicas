@@ -1,0 +1,440 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .stats-card {
+        transition: transform 0.2s;
+        border: none;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .stats-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    }
+    .invoice-status {
+        font-size: 0.875rem;
+        font-weight: 600;
+    }
+    .amount-cell {
+        font-family: 'Courier New', monospace;
+        text-align: right;
+    }
+    .overdue-highlight {
+        background-color: #fff5f5;
+        border-left: 4px solid #dc3545;
+    }
+    .filter-section {
+        background: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">
+        <i class="bi bi-receipt"></i> {{ title }}
+    </h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <a href="{{ url_for('receptionist.new_invoice') }}" class="btn btn-primary">
+                <i class="bi bi-cash-coin"></i> Nuevo Pago
+            </a>
+            <a href="{{ url_for('receptionist.billing_reports') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-graph-up"></i> Reportes
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Estadísticas Principales -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card stats-card text-white bg-primary">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="card-title">{{ stats.total_invoices }}</h4>
+                        <p class="card-text">Total Facturas</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-receipt-cutoff" style="font-size: 2rem;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card stats-card text-white bg-success">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="card-title">{{ stats.paid_invoices }}</h4>
+                        <p class="card-text">Facturas Pagadas</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-check-circle" style="font-size: 2rem;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card stats-card text-white bg-warning">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="card-title">{{ stats.pending_invoices }}</h4>
+                        <p class="card-text">Pendientes de Pago</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-clock" style="font-size: 2rem;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card stats-card text-white bg-danger">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="card-title">{{ stats.overdue_invoices }}</h4>
+                        <p class="card-text">Facturas Vencidas</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-exclamation-triangle" style="font-size: 2rem;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Estadísticas Financieras -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card stats-card">
+            <div class="card-body text-center">
+                <h5 class="card-title text-success">
+                    <i class="bi bi-currency-dollar"></i>
+                    S/ {{ "{:,.2f}".format(stats.total_paid_amount) }}
+                </h5>
+                <p class="card-text text-muted">Total Cobrado</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card stats-card">
+            <div class="card-body text-center">
+                <h5 class="card-title text-warning">
+                    <i class="bi bi-hourglass-split"></i>
+                    S/ {{ "{:,.2f}".format(stats.total_pending_amount) }}
+                </h5>
+                <p class="card-text text-muted">Por Cobrar</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card stats-card">
+            <div class="card-body text-center">
+                <h5 class="card-title text-info">
+                    <i class="bi bi-graph-up"></i>
+                    S/ {{ "{:,.2f}".format(stats.monthly_income) }}
+                </h5>
+                <p class="card-text text-muted">
+                    Ingresos del Mes
+                    {% if stats.monthly_growth != 0 %}
+                        <small class="d-block">
+                            {% if stats.monthly_growth > 0 %}
+                                <span class="text-success">
+                                    <i class="bi bi-arrow-up"></i> +{{ stats.monthly_growth }}%
+                                </span>
+                            {% else %}
+                                <span class="text-danger">
+                                    <i class="bi bi-arrow-down"></i> {{ stats.monthly_growth }}%
+                                </span>
+                            {% endif %}
+                        </small>
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filtros -->
+<div class="filter-section">
+    <form method="GET" class="row g-3">
+        <div class="col-md-2">
+            <label for="status" class="form-label">Estado</label>
+            <select class="form-select" id="status" name="status">
+                <option value="">Todos</option>
+                <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pendiente</option>
+                <option value="paid" {% if status_filter == 'paid' %}selected{% endif %}>Pagada</option>
+                <option value="overdue" {% if status_filter == 'overdue' %}selected{% endif %}>Vencida</option>
+                <option value="cancelled" {% if status_filter == 'cancelled' %}selected{% endif %}>Cancelada</option>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label for="search" class="form-label">Buscar</label>
+            <input type="text" class="form-control" id="search" name="search" 
+                   placeholder="Paciente, DNI o N° Factura" value="{{ search }}">
+        </div>
+        <div class="col-md-2">
+            <label for="start_date" class="form-label">Fecha Desde</label>
+            <input type="date" class="form-control" id="start_date" name="start_date" value="{{ start_date }}">
+        </div>
+        <div class="col-md-2">
+            <label for="end_date" class="form-label">Fecha Hasta</label>
+            <input type="date" class="form-control" id="end_date" name="end_date" value="{{ end_date }}">
+        </div>
+        <div class="col-md-3 d-flex align-items-end gap-2">
+            <button type="submit" class="btn btn-primary">
+                <i class="bi bi-funnel"></i> Filtrar
+            </button>
+            <a href="{{ url_for('receptionist.billing') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-x-circle"></i> Limpiar
+            </a>
+        </div>
+    </form>
+</div>
+
+<!-- Lista de Facturas -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Facturas</h5>
+        <span class="badge bg-primary">{{ invoices|length }} resultados</span>
+    </div>
+    <div class="card-body">
+        {% if invoices %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>N° Factura</th>
+                            <th>Fecha</th>
+                            <th>Paciente</th>
+                            <th>Doctor</th>
+                            <th>Monto</th>
+                            <th>Estado</th>
+                            <th>Vencimiento</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for invoice in invoices %}
+                        <tr {% if invoice.is_overdue and invoice.payment_status == 'pending' %}class="overdue-highlight"{% endif %}>
+                            <td>
+                                <strong>{{ invoice.invoice_number }}</strong>
+                                {% if invoice.appointment %}
+                                    <br><small class="text-muted">Cita</small>
+                                {% endif %}
+                            </td>
+                            <td>{{ invoice.issue_date.strftime('%d/%m/%Y') }}</td>
+                            <td>
+                                <strong>{{ invoice.patient.full_name }}</strong><br>
+                                <small class="text-muted">DNI: {{ invoice.patient.dni }}</small>
+                            </td>
+                            <td>Dr. {{ invoice.doctor.first_name }} {{ invoice.doctor.last_name }}</td>
+                            <td class="amount-cell">
+                                <strong>S/ {{ "{:,.2f}".format(invoice.total_amount) }}</strong>
+                            </td>
+                            <td>
+                                {% if invoice.status == 'paid' %}
+                                    <span class="badge bg-success">Pagada</span>
+                                {% elif invoice.is_overdue %}
+                                    <span class="badge bg-danger">
+                                        Vencida ({{ invoice.days_overdue() }} días)
+                                    </span>
+                                {% elif invoice.status == 'pending' %}
+                                    <span class="badge bg-warning">Pendiente</span>
+                                {% elif invoice.status == 'cancelled' %}
+                                    <span class="badge bg-secondary">Cancelada</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {{ invoice.due_date.strftime('%d/%m/%Y') }}
+                                {% if invoice.status == 'paid' and invoice.payment_date %}
+                                    <br><small class="text-success">Pagada: {{ invoice.payment_date.strftime('%d/%m/%Y') }}</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{{ url_for('receptionist.view_invoice', invoice_id=invoice.id) }}" 
+                                       class="btn btn-outline-info" title="Ver Detalles">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                    <button type="button" class="btn btn-outline-primary" 
+                                            onclick="printTicket({{ invoice.id }}, '{{ invoice.invoice_number }}', 'boleta')"
+                                            title="Imprimir Comprobante">
+                                        <i class="bi bi-printer"></i>
+                                    </button>
+                                    {% if invoice.status == 'pending' %}
+                                        <button type="button" class="btn btn-outline-success" 
+                                                onclick="markAsPaid({{ invoice.id }}, '{{ invoice.invoice_number }}')"
+                                                title="Marcar como Pagada">
+                                            <i class="bi bi-check-circle"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-outline-danger" 
+                                                onclick="cancelInvoice({{ invoice.id }}, '{{ invoice.invoice_number }}')"
+                                                title="Cancelar">
+                                            <i class="bi bi-x-circle"></i>
+                                        </button>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="text-center py-5">
+                <i class="bi bi-receipt fs-1 text-muted"></i>
+                <h4 class="text-muted mt-3">
+                    {% if search or status_filter or start_date or end_date %}
+                        No se encontraron facturas con los filtros aplicados
+                    {% else %}
+                        No hay facturas registradas
+                    {% endif %}
+                </h4>
+                <p class="text-muted">
+                    {% if not search and not status_filter and not start_date and not end_date %}
+                        Comienza procesando el primer pago
+                    {% else %}
+                        Intenta modificar los filtros de búsqueda
+                    {% endif %}
+                </p>
+                <a href="{{ url_for('receptionist.new_invoice') }}" class="btn btn-primary">
+                    <i class="bi bi-cash-coin"></i> Nuevo Pago
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Modal para marcar como pagada -->
+<div class="modal fade" id="paymentModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">
+                    <i class="bi bi-check-circle"></i> Registrar Pago
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Marcar factura <strong id="paymentInvoiceNumber"></strong> como pagada</p>
+                <div class="mb-3">
+                    <label for="paymentMethod" class="form-label">Método de Pago</label>
+                    <select class="form-select" id="paymentMethod">
+                        <option value="cash">Efectivo</option>
+                        <option value="card">Tarjeta</option>
+                        <option value="transfer">Transferencia</option>
+                        <option value="insurance">Seguro</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label for="paymentDate" class="form-label">Fecha de Pago</label>
+                    <input type="date" class="form-control" id="paymentDate">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-success" onclick="confirmPayment()">
+                    <i class="bi bi-check-circle"></i> Confirmar Pago
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para cancelar factura -->
+<div class="modal fade" id="cancelModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="bi bi-exclamation-triangle"></i> Cancelar Factura
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>¿Está seguro de que desea cancelar la factura <strong id="cancelInvoiceNumber"></strong>?</p>
+                <div class="alert alert-warning">
+                    <i class="bi bi-info-circle"></i>
+                    Esta acción no se puede deshacer. La factura quedará marcada como cancelada.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">No Cancelar</button>
+                <button type="button" class="btn btn-danger" onclick="confirmCancel()">
+                    <i class="bi bi-x-circle"></i> Sí, Cancelar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+console.log('Script cargando...');
+
+// DEFINIR PRIMERO: Función de impresión
+function printTicket(invoiceId, invoiceNumber, voucherType) {
+    console.log('printTicket llamada:', invoiceId, invoiceNumber, voucherType);
+    alert('¡FUNCIONA! Factura ID: ' + invoiceId + '\nNúmero: ' + invoiceNumber + '\nTipo: ' + voucherType);
+}
+
+// También asignar a window para mayor compatibilidad
+window.printTicket = printTicket;
+
+// Funciones que usan onclick (estas funcionan)
+function markAsPaid(invoiceId, invoiceNumber) {
+    alert('Función markAsPaid - ID: ' + invoiceId);
+}
+
+function cancelInvoice(invoiceId, invoiceNumber) {
+    alert('Función cancelInvoice - ID: ' + invoiceId);
+}
+
+// Variables globales
+let currentInvoiceId = null;
+
+// Configurar fecha por defecto cuando el DOM esté listo
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('✅ DOM cargado');
+    
+    // Verificar que la función printTicket está disponible
+    if (typeof printTicket === 'function') {
+        console.log('✅ printTicket está definida correctamente');
+    } else {
+        console.error('❌ printTicket NO está definida');
+    }
+    
+    // Configurar fecha por defecto
+    const paymentDateEl = document.getElementById('paymentDate');
+    if (paymentDateEl) {
+        const today = new Date().toISOString().split('T')[0];
+        paymentDateEl.value = today;
+        console.log('📅 Fecha configurada:', today);
+    }
+    
+    console.log('🎉 Configuración completada');
+});
+
+console.log('Script cargado completamente');
+
+</script>
+{% endblock %}

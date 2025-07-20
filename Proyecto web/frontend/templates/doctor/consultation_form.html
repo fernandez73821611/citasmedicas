@@ -1,0 +1,719 @@
+{% extends "base.html" %}
+
+{% block title %}
+{% if medical_record %}Editar Consulta Médica{% else %}Nueva Consulta{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Sidebar -->
+        <nav class="col-md-3 col-lg-2 d-md-block bg-light sidebar collapse">
+            {% include 'shared/sidebar.html' %}
+        </nav>
+
+        <!-- Main content -->
+        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                <h1 class="h2">
+                    <i class="fas fa-stethoscope me-2"></i>
+                    {% if medical_record %}Editar Consulta Médica{% else %}Nueva Consulta{% endif %}
+                </h1>
+                <div class="btn-toolbar mb-2 mb-md-0">
+                    <div class="btn-group me-2">
+                        <a href="{{ url_for('doctor.clinical_histories') }}" class="btn btn-sm btn-outline-secondary">
+                            <i class="fas fa-arrow-left me-1"></i>
+                            Volver
+                        </a>
+                        {% if patient %}
+                        <a href="{{ url_for('doctor.view_medical_history', patient_id=patient.id) }}" class="btn btn-sm btn-outline-info">
+                            <i class="fas fa-file-medical me-1"></i>
+                            Ver Historia Clínica
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Información del paciente y su historia -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-8">
+                                    <h6 class="mb-0">
+                                        <i class="fas fa-user me-2"></i>
+                                        Paciente: <strong>{{ patient.full_name }}</strong>
+                                        <span class="text-muted ms-2">DNI: {{ patient.dni }}</span>
+                                        <span class="text-muted ms-2">Edad: {{ patient.age }} años</span>
+                                    </h6>
+                                    {% if patient.medical_history %}
+                                    <div class="mt-2">
+                                        <span class="text-muted small">
+                                            <i class="fas fa-file-medical me-1"></i>
+                                            Historia Clínica: {{ patient.medical_history.medical_history_number }}
+                                        </span>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                <div class="col-md-4 text-end">
+                                    {% set status = patient.get_patient_status_for_doctor() %}
+                                    <span class="badge bg-{{ status.color }} fs-6">
+                                        <i class="{{ status.icon }} me-1"></i>
+                                        {{ status.label }}
+                                    </span>
+                                    <div class="mt-2">
+                                        <small class="text-muted">Consultas previas: {{ patient.get_medical_records_count() }}</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Formulario de Consulta/Anamnesis -->
+            <form method="POST" id="consultationForm">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <input type="hidden" name="patient_id" value="{{ patient.id }}"/>
+                {% if appointment %}
+                <input type="hidden" name="appointment_id" value="{{ appointment.id }}"/>
+                {% endif %}
+                
+                <!-- Anamnesis -->
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-clipboard-list me-2"></i>
+                                    Anamnesis
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <!-- Motivo de consulta -->
+                                <div class="mb-3">
+                                    <label for="chief_complaint" class="form-label">
+                                        <i class="fas fa-question-circle me-1"></i>
+                                        Motivo de Consulta <span class="text-danger">*</span>
+                                    </label>
+                                    <textarea class="form-control" id="chief_complaint" name="chief_complaint" rows="3" 
+                                              placeholder="¿Por qué viene el paciente a consulta?" required>{{ medical_record.chief_complaint if medical_record else '' }}</textarea>
+                                    <div class="form-text">
+                                        Describa el motivo principal por el cual el paciente solicita la consulta
+                                    </div>
+                                </div>
+
+                                <!-- Enfermedad actual -->
+                                <div class="mb-3">
+                                    <label for="current_illness" class="form-label">
+                                        <i class="fas fa-notes-medical me-1"></i>
+                                        Enfermedad Actual <span class="text-danger">*</span>
+                                    </label>
+                                    <textarea class="form-control" id="current_illness" name="current_illness" rows="5" 
+                                              placeholder="Historia detallada del problema actual del paciente..." required>{{ medical_record.current_illness if medical_record else '' }}</textarea>
+                                    <div class="form-text">
+                                        Describa detalladamente la historia del problema actual: inicio, evolución, síntomas asociados
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Examen Físico -->
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-hand-holding-medical me-2"></i>
+                                    Examen Físico
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <!-- Signos vitales -->
+                                <div class="mb-4">
+                                    <h6 class="mb-3">
+                                        <i class="fas fa-heartbeat me-1"></i>
+                                        Signos Vitales
+                                    </h6>
+                                    <div class="row">
+                                        <div class="col-md-4">
+                                            <div class="mb-3">
+                                                <label for="blood_pressure" class="form-label">
+                                                    Presión Arterial <span class="text-danger">*</span>
+                                                </label>
+                                                <input type="text" class="form-control" id="blood_pressure" name="blood_pressure" 
+                                                       placeholder="120/80" required
+                                                       value="{{ 
+                                                           medical_record.blood_pressure if medical_record 
+                                                           else (triage.blood_pressure_systolic ~ '/' ~ triage.blood_pressure_diastolic if triage and triage.blood_pressure_systolic and triage.blood_pressure_diastolic 
+                                                           else '') 
+                                                       }}">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="mb-3">
+                                                <label for="heart_rate" class="form-label">
+                                                    Frecuencia Cardíaca <span class="text-danger">*</span>
+                                                </label>
+                                                <input type="number" class="form-control" id="heart_rate" name="heart_rate" 
+                                                       placeholder="72" min="30" max="200" required
+                                                       value="{{ 
+                                                           medical_record.heart_rate if medical_record 
+                                                           else (triage.heart_rate if triage and triage.heart_rate 
+                                                           else '') 
+                                                       }}">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="mb-3">
+                                                <label for="temperature" class="form-label">
+                                                    Temperatura (°C) <span class="text-danger">*</span>
+                                                </label>
+                                                <input type="number" class="form-control" id="temperature" name="temperature" 
+                                                       placeholder="36.5" min="35" max="42" step="0.1" required
+                                                       value="{{ 
+                                                           medical_record.temperature if medical_record 
+                                                           else (triage.temperature if triage and triage.temperature 
+                                                           else '') 
+                                                       }}">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-4">
+                                            <div class="mb-3">
+                                                <label for="respiratory_rate" class="form-label">
+                                                    Frecuencia Respiratoria <span class="text-danger">*</span>
+                                                </label>
+                                                <input type="number" class="form-control" id="respiratory_rate" name="respiratory_rate" 
+                                                       placeholder="16" min="8" max="40" required
+                                                       value="{{ 
+                                                           medical_record.respiratory_rate if medical_record 
+                                                           else (triage.respiratory_rate if triage and triage.respiratory_rate 
+                                                           else '') 
+                                                       }}">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="mb-3">
+                                                <label for="weight" class="form-label">
+                                                    Peso (kg) <span class="text-danger">*</span>
+                                                </label>
+                                                <input type="number" class="form-control" id="weight" name="weight" 
+                                                       placeholder="70.5" min="1" max="300" step="0.1" required
+                                                       value="{{ 
+                                                           medical_record.weight if medical_record 
+                                                           else (triage.weight if triage and triage.weight 
+                                                           else '') 
+                                                       }}">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="mb-3">
+                                                <label for="height" class="form-label">
+                                                    Talla (cm) <span class="text-danger">*</span>
+                                                </label>
+                                                <input type="number" class="form-control" id="height" name="height" 
+                                                       placeholder="170" min="50" max="250" step="0.1" required
+                                                       value="{{ 
+                                                           medical_record.height if medical_record 
+                                                           else (triage.height if triage and triage.height 
+                                                           else '') 
+                                                       }}">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <!-- IMC calculado automáticamente -->
+                                    <div class="row">
+                                        <div class="col-md-4">
+                                            <div class="mb-3">
+                                                <label class="form-label">IMC</label>
+                                                <input type="text" class="form-control" id="bmi_display" readonly placeholder="Se calculará automáticamente">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-8">
+                                            <div class="mb-3">
+                                                <label class="form-label">Categoría IMC</label>
+                                                <input type="text" class="form-control" id="bmi_category_display" readonly placeholder="Se calculará automáticamente">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Examen físico general -->
+                                <div class="mb-3">
+                                    <label for="general_examination" class="form-label">
+                                        <i class="fas fa-eye me-1"></i>
+                                        Examen Físico General
+                                    </label>
+                                    <textarea class="form-control" id="general_examination" name="general_examination" rows="4" 
+                                              placeholder="Descripción del examen físico general del paciente...">{{ medical_record.general_examination if medical_record else '' }}</textarea>
+                                </div>
+
+                                <!-- Examen por sistemas -->
+                                <div class="mb-3">
+                                    <label for="systemic_examination" class="form-label">
+                                        <i class="fas fa-list-alt me-1"></i>
+                                        Examen por Sistemas
+                                    </label>
+                                    <textarea class="form-control" id="systemic_examination" name="systemic_examination" rows="4" 
+                                              placeholder="Examen por sistemas: cardiovascular, respiratorio, digestivo, etc...">{{ medical_record.systemic_examination if medical_record else '' }}</textarea>
+                                </div>
+
+                                <!-- Examen regional -->
+                                <div class="mb-3">
+                                    <label for="regional_examination" class="form-label">
+                                        <i class="fas fa-search me-1"></i>
+                                        Examen Regional (según especialidad)
+                                    </label>
+                                    <textarea class="form-control" id="regional_examination" name="regional_examination" rows="3" 
+                                              placeholder="Examen específico según la especialidad médica...">{{ medical_record.regional_examination if medical_record else '' }}</textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Diagnóstico y Plan -->
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-diagnosis me-2"></i>
+                                    Diagnóstico y Plan
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <!-- Diagnóstico -->
+                                <div class="mb-3">
+                                    <label for="diagnosis" class="form-label">
+                                        <i class="fas fa-stethoscope me-1"></i>
+                                        Diagnóstico Presuntivo/Definitivo <span class="text-danger">*</span>
+                                    </label>
+                                    <textarea class="form-control" id="diagnosis" name="diagnosis" rows="4" 
+                                              placeholder="Diagnóstico presuntivo o definitivo (usar CIE-10 si es posible)..." required>{{ medical_record.diagnosis if medical_record else '' }}</textarea>
+                                    <div class="form-text">
+                                        Incluya el diagnóstico principal y diagnósticos secundarios. Use códigos CIE-10 cuando sea posible.
+                                    </div>
+                                </div>
+
+                                <!-- Exámenes auxiliares -->
+                                <div class="mb-3">
+                                    <label for="auxiliary_exams" class="form-label">
+                                        <i class="fas fa-vials me-1"></i>
+                                        Exámenes Auxiliares Solicitados
+                                    </label>
+                                    <textarea class="form-control" id="auxiliary_exams" name="auxiliary_exams" rows="3" 
+                                              placeholder="Laboratorio, imágenes, otros exámenes solicitados...">{{ medical_record.auxiliary_exams if medical_record else '' }}</textarea>
+                                </div>
+
+                                <!-- Tratamiento -->
+                                <div class="mb-3">
+                                    <label for="treatment" class="form-label">
+                                        <i class="fas fa-prescription me-1"></i>
+                                        Tratamiento Prescrito <span class="text-danger">*</span>
+                                    </label>
+                                    <textarea class="form-control" id="treatment" name="treatment" rows="4" 
+                                              placeholder="Medicamentos, dosis, frecuencia, duración..." required>{{ medical_record.treatment if medical_record else '' }}</textarea>
+                                </div>
+
+                                <!-- Medicamentos recetados -->
+                                <div class="mb-3">
+                                    <label for="prescriptions" class="form-label">
+                                        <i class="fas fa-pills me-1"></i>
+                                        Medicamentos Recetados
+                                    </label>
+                                    <textarea class="form-control" id="prescriptions" name="prescriptions" rows="3" 
+                                              placeholder="Lista detallada de medicamentos recetados...">{{ medical_record.prescriptions if medical_record else '' }}</textarea>
+                                </div>
+
+                                <!-- Recomendaciones -->
+                                <div class="mb-3">
+                                    <label for="recommendations" class="form-label">
+                                        <i class="fas fa-clipboard-check me-1"></i>
+                                        Indicaciones y Recomendaciones
+                                    </label>
+                                    <textarea class="form-control" id="recommendations" name="recommendations" rows="3" 
+                                              placeholder="Recomendaciones para el paciente...">{{ medical_record.recommendations if medical_record else '' }}</textarea>
+                                </div>
+
+                                <!-- Próxima cita -->
+                                <div class="mb-3">
+                                    <label for="next_appointment_date" class="form-label">
+                                        <i class="fas fa-calendar-plus me-1"></i>
+                                        Próxima Cita
+                                    </label>
+                                    <input type="date" class="form-control" id="next_appointment_date" name="next_appointment_date" 
+                                           value="{{ medical_record.next_appointment_date.strftime('%Y-%m-%d') if medical_record and medical_record.next_appointment_date else '' }}">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Datos Administrativos -->
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-clipboard-user me-2"></i>
+                                    Datos Administrativos
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Fecha y Hora de Atención</label>
+                                            <input type="datetime-local" class="form-control" 
+                                                   value="{{ medical_record.consultation_date.strftime('%Y-%m-%dT%H:%M') if medical_record else current_datetime.strftime('%Y-%m-%dT%H:%M') }}" 
+                                                   readonly>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Médico Tratante</label>
+                                            <input type="text" class="form-control" 
+                                                   value="{{ current_user.full_name }}" readonly>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Especialidad</label>
+                                            <input type="text" class="form-control" 
+                                                   value="{{ current_user.specialty.name if current_user.specialty else 'General' }}" readonly>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">CMP</label>
+                                            <input type="text" class="form-control" 
+                                                   value="{{ current_user.cmp_number if current_user.cmp_number else 'No especificado' }}" readonly>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Observaciones adicionales -->
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-sticky-note me-2"></i>
+                                    Observaciones Adicionales
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <label for="observations" class="form-label">
+                                        <i class="fas fa-comment me-1"></i>
+                                        Observaciones del Médico
+                                    </label>
+                                    <textarea class="form-control" id="observations" name="observations" rows="4" 
+                                              placeholder="Observaciones adicionales, notas importantes...">{{ medical_record.observations if medical_record else '' }}</textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Botones de acción -->
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between">
+                                    <a href="{{ url_for('doctor.clinical_histories') }}" class="btn btn-secondary">
+                                        <i class="fas fa-times me-1"></i>
+                                        Cancelar
+                                    </a>
+                                    <div>
+                                        <button type="submit" name="action" value="save" class="btn btn-primary">
+                                            <i class="fas fa-save me-1"></i>
+                                            Guardar Consulta
+                                        </button>
+                                        <button type="submit" name="action" value="save_and_print" class="btn btn-success ms-2">
+                                            <i class="fas fa-print me-1"></i>
+                                            Guardar e Imprimir
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </main>
+    </div>
+</div>
+
+<!-- Variables del paciente para JavaScript -->
+<script>
+window.PATIENT_DATA = {
+    age: {{ patient.age }},
+    ageGroup: '{{ patient.age_group }}',
+    name: '{{ patient.full_name|e }}'
+};
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('consultationForm');
+    const weightInput = document.getElementById('weight');
+    const heightInput = document.getElementById('height');
+    const bmiDisplay = document.getElementById('bmi_display');
+    const bmiCategoryDisplay = document.getElementById('bmi_category_display');
+    
+    console.log('PATIENT_DATA initialized:', window.PATIENT_DATA);
+    
+    // Funciones de utilidad para campos
+    function disableField(field, reason) {
+        if (field) {
+            field.disabled = true;
+            field.value = '';
+            field.placeholder = reason || 'No aplicable para esta edad';
+            field.style.backgroundColor = '#f8f9fa';
+            field.style.color = '#6c757d';
+            
+            // Remover required si está presente
+            field.removeAttribute('required');
+            
+            // Añadir tooltip
+            field.title = reason || 'No aplicable para esta edad';
+        }
+    }
+    
+    function enableField(field, isRequired = false, helpText = '') {
+        if (field) {
+            field.disabled = false;
+            field.style.backgroundColor = '';
+            field.style.color = '';
+            
+            if (isRequired) {
+                field.setAttribute('required', 'required');
+            } else {
+                field.removeAttribute('required');
+            }
+            
+            if (helpText) {
+                field.title = helpText;
+            }
+        }
+    }
+    
+    // Configurar restricciones según grupo etario
+    function configureFieldsByAge() {
+        // Obtener referencias a todos los campos
+        const bloodPressureField = document.getElementById('blood_pressure');
+        const heartRateField = document.getElementById('heart_rate');
+        const temperatureField = document.getElementById('temperature');
+        const respiratoryRateField = document.getElementById('respiratory_rate');
+        
+        console.log('Configuring fields for age group:', window.PATIENT_DATA.ageGroup);
+        
+        if (window.PATIENT_DATA.ageGroup === 'lactante') {
+            console.log('Applying lactante restrictions (0-2 años)');
+            
+            // Campos bloqueados para lactantes
+            disableField(bloodPressureField, 'Presión arterial no confiable hasta los 2 años');
+            disableField(respiratoryRateField, 'Se evalúa por observación directa');
+            
+            // Campos críticos para lactantes
+            enableField(heartRateField, true, 'CRÍTICO - Normal: 100-160 bpm');
+            enableField(temperatureField, true, 'CRÍTICO - Normal: 36.5-37.8°C');
+            enableField(weightInput, true, 'CRÍTICO para desarrollo');
+            enableField(heightInput, true, 'CRÍTICO para desarrollo');
+            
+        } else if (window.PATIENT_DATA.ageGroup === 'preescolar') {
+            console.log('Applying preescolar restrictions (2-6 años)');
+            
+            if (window.PATIENT_DATA.age < 3) {
+                // Menor de 3 años
+                disableField(bloodPressureField, 'Presión arterial no confiable hasta los 3 años');
+            } else {
+                // 3 años o más
+                enableField(bloodPressureField, true, 'CRÍTICO - Normal: 85-110/55-75 mmHg');
+            }
+            
+            enableField(heartRateField, true, 'CRÍTICO - Normal: 90-130 bpm');
+            enableField(temperatureField, true, 'CRÍTICO - Normal: 36.0-37.5°C');
+            enableField(respiratoryRateField, false, 'Normal: 12-20 rpm');
+            enableField(weightInput, true, 'Importante para desarrollo');
+            enableField(heightInput, true, 'Importante para desarrollo');
+            
+        } else if (window.PATIENT_DATA.ageGroup === 'escolar') {
+            console.log('Applying escolar restrictions (6-12 años)');
+            
+            // Todos los campos disponibles para escolares
+            enableField(bloodPressureField, true, 'CRÍTICO - Normal: 90-120/60-80 mmHg');
+            enableField(heartRateField, true, 'CRÍTICO - Normal: 70-110 bpm');
+            enableField(temperatureField, true, 'CRÍTICO - Normal: 36.0-37.5°C');
+            enableField(respiratoryRateField, false, 'Normal: 12-20 rpm');
+            enableField(weightInput, true, 'Importante');
+            enableField(heightInput, true, 'Importante');
+            
+        } else if (window.PATIENT_DATA.ageGroup === 'adolescente') {
+            console.log('Applying adolescente restrictions (12-18 años)');
+            
+            // Evaluación similar a adulto
+            enableField(bloodPressureField, true, 'Normal: 100-130/70-85 mmHg');
+            enableField(heartRateField, true, 'Normal: 60-100 bpm');
+            enableField(temperatureField, true, 'Normal: 36.0-37.5°C');
+            enableField(respiratoryRateField, false, 'Normal: 12-20 rpm');
+            enableField(weightInput, true, 'Importante');
+            enableField(heightInput, true, 'Importante');
+            
+        } else if (PATIENT_DATA.ageGroup === 'adulto_mayor') {
+            console.log('Applying adulto mayor restrictions (65+ años)');
+            
+            // Configuración especial para adulto mayor
+            enableField(bloodPressureField, true, 'Tolerancia hasta 140/90 mmHg');
+            enableField(heartRateField, true, 'Normal: 50-90 bpm (puede ser más baja)');
+            enableField(temperatureField, true, 'Normal: 35.5-37.0°C (puede ser más baja)');
+            enableField(respiratoryRateField, false, 'Normal: 12-20 rpm');
+            enableField(weightInput, true, 'Importante - vigilar pérdida de peso');
+            enableField(heightInput, true, 'Importante - puede disminuir con edad');
+            
+        } else {
+            console.log('Applying adult configuration (18-65 años)');
+            
+            // Configuración estándar para adultos
+            enableField(bloodPressureField, true, 'Normal: 120/80 mmHg');
+            enableField(heartRateField, true, 'Normal: 60-100 bpm');
+            enableField(temperatureField, true, 'Normal: 36.0-37.5°C');
+            enableField(respiratoryRateField, false, 'Normal: 12-20 rpm');
+            enableField(weightInput, true);
+            enableField(heightInput, true);
+        }
+        
+        // Mostrar información de grupo etario
+        showAgeGroupInfo();
+    }
+    
+    function showAgeGroupInfo() {
+        // Crear o actualizar el elemento de información de grupo etario
+        let ageInfoElement = document.getElementById('age-group-info');
+        if (!ageInfoElement) {
+            ageInfoElement = document.createElement('div');
+            ageInfoElement.id = 'age-group-info';
+            ageInfoElement.className = 'alert alert-info mt-2';
+            
+            // Insertar después del título de signos vitales
+            const vitalSignsTitle = document.querySelector('h6:has(i.fas.fa-heartbeat)');
+            if (vitalSignsTitle) {
+                vitalSignsTitle.parentNode.insertBefore(ageInfoElement, vitalSignsTitle.nextSibling);
+            }
+        }
+        
+        let infoText = '';
+        switch (window.PATIENT_DATA.ageGroup) {
+            case 'lactante':
+                infoText = '🍼 <strong>Lactante (0-2 años)</strong>: Presión arterial no medible. Peso y temperatura críticos.';
+                break;
+            case 'preescolar':
+                if (window.PATIENT_DATA.age < 3) {
+                    infoText = '👶 <strong>Preescolar menor (2-3 años)</strong>: Sin presión arterial. Evaluación gentil.';
+                } else {
+                    infoText = '🧒 <strong>Preescolar (3-6 años)</strong>: Todos los signos vitales. Comunicación directa limitada.';
+                }
+                break;
+            case 'escolar':
+                infoText = '📚 <strong>Escolar (6-12 años)</strong>: Evaluación completa. Comunicación directa posible.';
+                break;
+            case 'adolescente':
+                infoText = '🧑‍🎓 <strong>Adolescente (12-18 años)</strong>: Evaluación similar a adulto. Considerar privacidad.';
+                break;
+            case 'adulto_mayor':
+                infoText = '👴 <strong>Adulto Mayor (65+ años)</strong>: Considerar tolerancias especiales. Vigilar polifarmacia.';
+                break;
+            default:
+                infoText = '👨‍⚕️ <strong>Adulto (18-65 años)</strong>: Evaluación estándar completa.';
+        }
+        
+        ageInfoElement.innerHTML = `<small>${infoText}</small>`;
+    }
+    
+    // Calcular IMC automáticamente
+    function calculateBMI() {
+        const weight = parseFloat(weightInput.value);
+        const height = parseFloat(heightInput.value);
+        
+        if (weight && height) {
+            const heightInMeters = height / 100;
+            const bmi = weight / (heightInMeters * heightInMeters);
+            
+            bmiDisplay.value = bmi.toFixed(2);
+            
+            // Categorizar IMC
+            let category = '';
+            if (bmi < 18.5) {
+                category = 'Bajo peso';
+            } else if (bmi < 25) {
+                category = 'Normal';
+            } else if (bmi < 30) {
+                category = 'Sobrepeso';
+            } else {
+                category = 'Obesidad';
+            }
+            
+            bmiCategoryDisplay.value = category;
+        } else {
+            bmiDisplay.value = '';
+            bmiCategoryDisplay.value = '';
+        }
+    }
+    
+    // Configurar campos según edad al cargar
+    configureFieldsByAge();
+    
+    // Eventos para calcular IMC
+    weightInput.addEventListener('input', calculateBMI);
+    heightInput.addEventListener('input', calculateBMI);
+    
+    // Calcular IMC al cargar si ya hay datos
+    calculateBMI();
+    
+    // Validación del formulario
+    form.addEventListener('submit', function(e) {
+        let isValid = true;
+        let errorMessage = '';
+        
+        // Validar solo campos habilitados y requeridos
+        const requiredFields = form.querySelectorAll('input[required], textarea[required], select[required]');
+        
+        requiredFields.forEach(field => {
+            if (!field.disabled && !field.value.trim()) {
+                isValid = false;
+                errorMessage = 'Todos los campos marcados con * son obligatorios.';
+                field.style.borderColor = '#dc3545';
+            } else {
+                field.style.borderColor = '';
+            }
+        });
+        
+        if (!isValid) {
+            e.preventDefault();
+            alert(errorMessage);
+        }
+    });
+    
+    // Auto-guardado cada 60 segundos
+    setInterval(function() {
+        // Implementar auto-guardado si es necesario
+        console.log('Auto-guardado activado');
+    }, 60000);
+});
+</script>
+{% endblock %}

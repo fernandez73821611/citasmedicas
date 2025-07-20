@@ -1,0 +1,269 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} - Sistema Médico{% endblock %}
+
+{% block header %}
+<h1 class="h3 mb-4">{{ title }}</h1>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-percentage"></i> Configuración de Comisiones por Doctor
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if doctors %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Doctor</th>
+                                    <th>Especialidad</th>
+                                    <th>Precio Base</th>
+                                    <th>Comisión Actual</th>
+                                    <th>Monto por Consulta</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for doctor in doctors %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="avatar bg-primary text-white rounded-circle me-3 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                                {{ doctor.first_name[0] }}{{ doctor.last_name[0] }}
+                                            </div>
+                                            <div>
+                                                <strong>{{ doctor.full_name }}</strong><br>
+                                                <small class="text-muted">{{ doctor.username }}</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        {% if doctor.specialty %}
+                                            <span class="badge bg-info">{{ doctor.specialty.name }}</span>
+                                        {% else %}
+                                            <span class="text-muted">Sin especialidad</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if doctor.specialty %}
+                                            <strong>S/ {{ '%.2f'|format(doctor.specialty.base_price) }}</strong>
+                                        {% else %}
+                                            <span class="text-muted">—</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% set config = configurations.get(doctor.id) %}
+                                        {% if config %}
+                                            <span class="badge bg-success">{{ '%.1f'|format(config.commission_percentage) }}%</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">No configurado</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if config and doctor.specialty %}
+                                            {% set commission = (doctor.specialty.base_price * config.commission_percentage / 100) %}
+                                            <strong class="text-success">S/ {{ '%.2f'|format(commission) }}</strong>
+                                        {% else %}
+                                            <span class="text-muted">—</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <button type="button" 
+                                                class="btn btn-sm btn-outline-primary" 
+                                                data-bs-toggle="modal" 
+                                                data-bs-target="#configModal"
+                                                onclick="openConfigModal({{ doctor.id }}, '{{ doctor.full_name }}', {{ config.commission_percentage if config else 0 }})">
+                                            <i class="fas fa-cog"></i> 
+                                            {% if config %}Modificar{% else %}Configurar{% endif %}
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-user-md fa-3x mb-3"></i>
+                        <p>No hay doctores registrados en el sistema.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Panel lateral -->
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="fas fa-info-circle"></i> Información del Sistema
+                </h6>
+            </div>
+            <div class="card-body">
+                <h6>Cálculo de Comisiones</h6>
+                <ul class="list-unstyled small">
+                    <li><i class="fas fa-check text-success"></i> Comisión = Precio Especialidad × Porcentaje</li>
+                    <li><i class="fas fa-check text-success"></i> Se genera automáticamente al pagar facturas</li>
+                    <li><i class="fas fa-check text-success"></i> Porcentaje configurable por doctor</li>
+                </ul>
+
+                <hr>
+
+                <h6>Recomendaciones</h6>
+                <ul class="list-unstyled small">
+                    <li><i class="fas fa-lightbulb text-warning"></i> Configure porcentajes realistas (20-50%)</li>
+                    <li><i class="fas fa-lightbulb text-warning"></i> Revise periódicamente los montos</li>
+                    <li><i class="fas fa-lightbulb text-warning"></i> Use reportes para análisis</li>
+                </ul>
+
+                <hr>
+
+                <div class="d-grid">
+                    <a href="{{ url_for('admin.commission_reports') }}" class="btn btn-outline-info">
+                        <i class="fas fa-chart-line"></i> Ver Reportes de Comisiones
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Estadísticas rápidas -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="fas fa-chart-bar"></i> Estadísticas
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-6">
+                        <div class="border-end">
+                            <h4 class="text-primary mb-0">{{ doctors|length }}</h4>
+                            <small class="text-muted">Doctores</small>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <h4 class="text-success mb-0">{{ configurations|length }}</h4>
+                        <small class="text-muted">Configurados</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para configurar comisión -->
+<div class="modal fade" id="configModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-percentage"></i> Configurar Comisión
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" id="configForm">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        Configurando comisión para: <strong id="doctorName"></strong>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="commission_percentage" class="form-label">
+                            Porcentaje de Comisión <span class="text-danger">*</span>
+                        </label>
+                        <div class="input-group">
+                            <input type="number" 
+                                   class="form-control" 
+                                   id="commission_percentage" 
+                                   name="commission_percentage" 
+                                   required 
+                                   min="0" 
+                                   max="100" 
+                                   step="0.1"
+                                   placeholder="40.0">
+                            <span class="input-group-text">%</span>
+                        </div>
+                        <div class="form-text">
+                            Porcentaje que recibirá el doctor sobre el precio base de su especialidad.
+                        </div>
+                    </div>
+
+                    <div class="card bg-light">
+                        <div class="card-body">
+                            <h6 class="card-title">Vista Previa del Cálculo</h6>
+                            <div id="calculationPreview">
+                                <p class="mb-1"><strong>Precio de Especialidad:</strong> <span id="specialtyPrice">S/ 0.00</span></p>
+                                <p class="mb-1"><strong>Porcentaje:</strong> <span id="previewPercentage">0%</span></p>
+                                <p class="mb-0"><strong>Comisión por Consulta:</strong> <span id="previewCommission" class="text-success fw-bold">S/ 0.00</span></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Guardar Configuración
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentDoctorData = {};
+
+function openConfigModal(doctorId, doctorName, currentPercentage) {
+    currentDoctorData.doctorId = doctorId;
+    currentDoctorData.doctorName = doctorName;
+    
+    // Buscar datos del doctor en la tabla
+    const row = event.target.closest('tr');
+    const specialtyPriceText = row.querySelector('td:nth-child(3) strong');
+    currentDoctorData.specialtyPrice = specialtyPriceText ? 
+        parseFloat(specialtyPriceText.textContent.replace('S/ ', '')) : 0;
+    
+    // Configurar modal
+    document.getElementById('doctorName').textContent = doctorName;
+    document.getElementById('commission_percentage').value = currentPercentage;
+    document.getElementById('configForm').action = 
+        `/admin/salary-management/configure/${doctorId}`;
+    
+    // Actualizar vista previa
+    updateCalculationPreview();
+}
+
+function updateCalculationPreview() {
+    const percentage = parseFloat(document.getElementById('commission_percentage').value) || 0;
+    const specialtyPrice = currentDoctorData.specialtyPrice || 0;
+    const commission = (specialtyPrice * percentage) / 100;
+    
+    document.getElementById('specialtyPrice').textContent = `S/ ${specialtyPrice.toFixed(2)}`;
+    document.getElementById('previewPercentage').textContent = `${percentage.toFixed(1)}%`;
+    document.getElementById('previewCommission').textContent = `S/ ${commission.toFixed(2)}`;
+}
+
+// Actualizar vista previa en tiempo real
+document.getElementById('commission_percentage').addEventListener('input', updateCalculationPreview);
+
+// Validación del formulario
+document.getElementById('configForm').addEventListener('submit', function(e) {
+    const percentage = parseFloat(document.getElementById('commission_percentage').value);
+    
+    if (isNaN(percentage) || percentage < 0 || percentage > 100) {
+        e.preventDefault();
+        alert('Por favor, ingrese un porcentaje válido entre 0% y 100%.');
+        return false;
+    }
+});
+</script>
+{% endblock %}

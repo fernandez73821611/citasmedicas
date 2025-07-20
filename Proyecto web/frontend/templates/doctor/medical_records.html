@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+
+{% block title %}Historiales Médicos{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Sidebar -->
+        <nav class="col-md-3 col-lg-2 d-md-block bg-light sidebar collapse">
+            {% include 'shared/sidebar.html' %}
+        </nav>
+
+        <!-- Main content -->
+        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                <h1 class="h2">
+                    <i class="fas fa-clipboard-list me-2"></i>
+                    Historiales Médicos
+                </h1>
+                <div class="btn-toolbar mb-2 mb-md-0">
+                    <div class="btn-group me-2">
+                        <a href="{{ url_for('doctor.new_medical_record') }}" class="btn btn-sm btn-primary">
+                            <i class="fas fa-plus me-1"></i>
+                            Nuevo Historial
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filtros de búsqueda -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <form method="GET" class="row g-3">
+                        <div class="col-md-4">
+                            <label for="patient_search" class="form-label">Buscar Paciente</label>
+                            <input type="text" class="form-control" id="patient_search" name="patient_search" 
+                                   value="{{ request.args.get('patient_search', '') }}" 
+                                   placeholder="Nombre, apellido o DNI">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="date_from" class="form-label">Desde</label>
+                            <input type="date" class="form-control" id="date_from" name="date_from" 
+                                   value="{{ request.args.get('date_from', '') }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="date_to" class="form-label">Hasta</label>
+                            <input type="date" class="form-control" id="date_to" name="date_to" 
+                                   value="{{ request.args.get('date_to', '') }}">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">&nbsp;</label>
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-outline-primary">
+                                    <i class="fas fa-search me-1"></i>
+                                    Buscar
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Lista de historiales médicos -->
+            {% if medical_records %}
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-list me-2"></i>
+                        Lista de Historiales Médicos ({{ medical_records|length }} registros)
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Paciente</th>
+                                    <th>Diagnóstico</th>
+                                    <th>Síntomas</th>
+                                    <th>Estado</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for record in medical_records %}                                <tr>
+                                    <td>
+                                        <span class="text-muted">{{ record.consultation_date.strftime('%d/%m/%Y') }}</span>
+                                        <br>
+                                        <small class="text-muted">{{ record.consultation_date.strftime('%H:%M') }}</small>
+                                    </td>
+                                    <td>
+                                        <strong>{{ record.patient.first_name }} {{ record.patient.last_name }}</strong>
+                                        <br>
+                                        <small class="text-muted">DNI: {{ record.patient.dni }}</small>
+                                    </td>
+                                    <td>
+                                        <span class="text-truncate d-inline-block" style="max-width: 200px;" 
+                                              title="{{ record.diagnosis }}">
+                                            {{ (record.diagnosis or '')[:50] }}{% if (record.diagnosis or '')|length > 50 %}...{% endif %}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="text-truncate d-inline-block" style="max-width: 150px;" 
+                                              title="{{ record.symptoms }}">
+                                            {{ (record.symptoms or '')[:40] }}{% if (record.symptoms or '')|length > 40 %}...{% endif %}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if record.appointment %}
+                                            <span class="badge bg-info">
+                                                <i class="fas fa-calendar-check me-1"></i>
+                                                Con Cita
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">
+                                                <i class="fas fa-file-medical me-1"></i>
+                                                General
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            <a href="{{ url_for('doctor.view_medical_record', id=record.id) }}" 
+                                               class="btn btn-outline-primary" title="Ver Detalles">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            <a href="{{ url_for('doctor.edit_medical_record', id=record.id) }}" 
+                                               class="btn btn-outline-warning" title="Editar">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            <a href="{{ url_for('doctor.patient_history', patient_id=record.patient.id) }}" 
+                                               class="btn btn-outline-info" title="Ver Historial Completo">
+                                                <i class="fas fa-history"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="alert alert-info text-center">
+                <i class="fas fa-info-circle fa-3x mb-3"></i>
+                <h4>No hay historiales médicos</h4>
+                <p class="mb-3">No se encontraron historiales médicos con los criterios de búsqueda especificados.</p>
+                <a href="{{ url_for('doctor.new_medical_record') }}" class="btn btn-primary">
+                    <i class="fas fa-plus me-2"></i>
+                    Crear Primer Historial
+                </a>
+            </div>
+            {% endif %}
+        </main>
+    </div>
+</div>
+
+<style>
+.sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 100;
+    padding: 48px 0 0;
+    box-shadow: inset -1px 0 0 rgba(0, 0, 0, .1);
+}
+
+.sidebar-sticky {
+    position: relative;
+    top: 0;
+    height: calc(100vh - 48px);
+    padding-top: .5rem;
+    overflow-x: hidden;
+    overflow-y: auto;
+}
+
+main {
+    margin-left: 16.66667%;
+}
+
+@media (max-width: 767.98px) {
+    .sidebar {
+        top: 5rem;
+    }
+    
+    main {
+        margin-left: 0;
+    }
+}
+
+.text-truncate {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+</style>
+{% endblock %}

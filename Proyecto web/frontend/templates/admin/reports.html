@@ -1,0 +1,493 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .stats-card {
+        transition: transform 0.2s;
+        border: none;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .stats-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    }
+    .stat-icon {
+        font-size: 2.5rem;
+        margin-bottom: 1rem;
+    }
+    .chart-container {
+        position: relative;
+        height: 400px;
+        margin: 20px 0;
+    }
+    .filter-section {
+        background: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+    .table-responsive {
+        max-height: 400px;
+        overflow-y: auto;
+    }
+    .rate-badge {
+        font-size: 0.9rem;
+        padding: 0.25rem 0.5rem;
+    }
+    .export-btn {
+        margin-left: 5px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        {% include 'shared/sidebar.html' %}
+        
+        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                <h1 class="h2">
+                    <i class="bi bi-graph-up-arrow"></i> {{ title }}
+                </h1>
+                <div class="btn-group" role="group">
+                    <button type="button" class="btn btn-outline-primary" onclick="exportReport('csv')">
+                        <i class="bi bi-download"></i> CSV
+                    </button>
+                    <button type="button" class="btn btn-outline-primary" onclick="exportReport('json')">
+                        <i class="bi bi-download"></i> JSON
+                    </button>
+                    <button type="button" class="btn btn-outline-primary" onclick="exportReport('pdf')">
+                        <i class="bi bi-file-earmark-pdf"></i> PDF
+                    </button>
+                    <button type="button" class="btn btn-outline-primary" onclick="refreshData()">
+                        <i class="bi bi-arrow-clockwise"></i> Actualizar
+                    </button>
+                </div>
+            </div>
+
+            <!-- Filtros de Fecha -->
+            <div class="filter-section">
+                <form method="GET" class="row g-3">
+                    <div class="col-md-3">
+                        <label for="period" class="form-label">Período Rápido</label>
+                        <select class="form-select" id="period" name="period" onchange="updatePeriod()">
+                            <option value="7" {% if period == '7' %}selected{% endif %}>Últimos 7 días</option>
+                            <option value="30" {% if period == '30' %}selected{% endif %}>Últimos 30 días</option>
+                            <option value="90" {% if period == '90' %}selected{% endif %}>Últimos 90 días</option>
+                            <option value="365" {% if period == '365' %}selected{% endif %}>Último año</option>
+                            <option value="custom" {% if period == 'custom' %}selected{% endif %}>Personalizado</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="start_date" class="form-label">Fecha Inicio</label>
+                        <input type="date" class="form-control" id="start_date" name="start_date" 
+                               value="{{ start_date }}" onchange="document.getElementById('period').value='custom'">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="end_date" class="form-label">Fecha Fin</label>
+                        <input type="date" class="form-control" id="end_date" name="end_date" 
+                               value="{{ end_date }}" onchange="document.getElementById('period').value='custom'">
+                    </div>
+                    <div class="col-md-3 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="bi bi-funnel"></i> Filtrar
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Estadísticas Generales -->
+            <div class="row mb-4">
+                <div class="col-md-3 mb-3">
+                    <div class="card stats-card h-100">
+                        <div class="card-body text-center">
+                            <i class="bi bi-people-fill stat-icon text-primary"></i>
+                            <h3 class="card-title text-primary">{{ stats.total_patients }}</h3>
+                            <p class="card-text">Total Pacientes</p>
+                            <small class="text-muted">{{ stats.active_patients }} activos</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="card stats-card h-100">
+                        <div class="card-body text-center">
+                            <i class="bi bi-calendar-check stat-icon text-success"></i>
+                            <h3 class="card-title text-success">{{ stats.total_appointments }}</h3>
+                            <p class="card-text">Total Citas</p>
+                            <small class="text-muted">{{ stats.completed_appointments }} completadas</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="card stats-card h-100">
+                        <div class="card-body text-center">
+                            <i class="bi bi-person-badge stat-icon text-info"></i>
+                            <h3 class="card-title text-info">{{ stats.total_doctors }}</h3>
+                            <p class="card-text">Total Doctores</p>
+                            <small class="text-muted">Activos en sistema</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="card stats-card h-100">
+                        <div class="card-body text-center">
+                            <i class="bi bi-journal-medical stat-icon text-warning"></i>
+                            <h3 class="card-title text-warning">{{ stats.medical_records }}</h3>
+                            <p class="card-text">Registros Médicos</p>
+                            <small class="text-muted">En el período</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Métricas de Rendimiento -->
+            <div class="row mb-4">
+                <div class="col-md-3 mb-3">
+                    <div class="card stats-card h-100">
+                        <div class="card-body text-center">
+                            <div class="d-flex justify-content-center mb-2">
+                                {% if stats.completion_rate >= 80 %}
+                                    <span class="badge bg-success rate-badge">{{ stats.completion_rate }}%</span>
+                                {% elif stats.completion_rate >= 60 %}
+                                    <span class="badge bg-warning rate-badge">{{ stats.completion_rate }}%</span>
+                                {% else %}
+                                    <span class="badge bg-danger rate-badge">{{ stats.completion_rate }}%</span>
+                                {% endif %}
+                            </div>
+                            <p class="card-text">Tasa de Completado</p>
+                            <small class="text-muted">{{ stats.completed_appointments }}/{{ stats.total_appointments }} citas</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="card stats-card h-100">
+                        <div class="card-body text-center">
+                            <div class="d-flex justify-content-center mb-2">
+                                {% if stats.cancellation_rate <= 10 %}
+                                    <span class="badge bg-success rate-badge">{{ stats.cancellation_rate }}%</span>
+                                {% elif stats.cancellation_rate <= 20 %}
+                                    <span class="badge bg-warning rate-badge">{{ stats.cancellation_rate }}%</span>
+                                {% else %}
+                                    <span class="badge bg-danger rate-badge">{{ stats.cancellation_rate }}%</span>
+                                {% endif %}
+                            </div>
+                            <p class="card-text">Tasa de Cancelación</p>
+                            <small class="text-muted">{{ stats.cancelled_appointments }} canceladas</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="card stats-card h-100">
+                        <div class="card-body text-center">
+                            <div class="d-flex justify-content-center mb-2">
+                                {% if stats.no_show_rate <= 5 %}
+                                    <span class="badge bg-success rate-badge">{{ stats.no_show_rate }}%</span>
+                                {% elif stats.no_show_rate <= 15 %}
+                                    <span class="badge bg-warning rate-badge">{{ stats.no_show_rate }}%</span>
+                                {% else %}
+                                    <span class="badge bg-danger rate-badge">{{ stats.no_show_rate }}%</span>
+                                {% endif %}
+                            </div>
+                            <p class="card-text">Tasa de Ausencias</p>
+                            <small class="text-muted">{{ stats.no_show_appointments }} ausencias</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="card stats-card h-100">
+                        <div class="card-body text-center">
+                            <i class="bi bi-person-plus stat-icon text-primary"></i>
+                            <h3 class="card-title text-primary">{{ stats.new_patients }}</h3>
+                            <p class="card-text">Nuevos Pacientes</p>
+                            <small class="text-muted">En el período</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Gráficos -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="bi bi-pie-chart"></i> Distribución de Citas por Estado
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="chart-container">
+                                <canvas id="statusChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="bi bi-bar-chart"></i> Tendencia Mensual
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="chart-container">
+                                <canvas id="monthlyChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Estadísticas por Especialidad -->
+            {% if specialty_stats %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-list-ul"></i> Estadísticas por Especialidad
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Especialidad</th>
+                                    <th>Total Citas</th>
+                                    <th>Completadas</th>
+                                    <th>Canceladas</th>
+                                    <th>Tasa de Completado</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for specialty in specialty_stats %}
+                                <tr>
+                                    <td><strong>{{ specialty.name }}</strong></td>
+                                    <td>
+                                        <span class="badge bg-primary">{{ specialty.total_appointments }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-success">{{ specialty.completed }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-danger">{{ specialty.cancelled }}</span>
+                                    </td>
+                                    <td>
+                                        {% if specialty.completion_rate >= 80 %}
+                                            <span class="badge bg-success">{{ specialty.completion_rate }}%</span>
+                                        {% elif specialty.completion_rate >= 60 %}
+                                            <span class="badge bg-warning">{{ specialty.completion_rate }}%</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">{{ specialty.completion_rate }}%</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Estadísticas por Doctor -->
+            {% if doctor_stats %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-person-workspace"></i> Rendimiento por Doctor
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Doctor</th>
+                                    <th>Especialidad</th>
+                                    <th>Total Citas</th>
+                                    <th>Completadas</th>
+                                    <th>Pacientes Únicos</th>
+                                    <th>Tasa de Completado</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for doctor in doctor_stats %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ doctor.name }}</strong><br>
+                                        <small class="text-muted">{{ doctor.email }}</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info">{{ doctor.specialty }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-primary">{{ doctor.total_appointments }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-success">{{ doctor.completed }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-secondary">{{ doctor.unique_patients }}</span>
+                                    </td>
+                                    <td>
+                                        {% if doctor.completion_rate >= 80 %}
+                                            <span class="badge bg-success">{{ doctor.completion_rate }}%</span>
+                                        {% elif doctor.completion_rate >= 60 %}
+                                            <span class="badge bg-warning">{{ doctor.completion_rate }}%</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">{{ doctor.completion_rate }}%</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </main>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Datos para gráficos
+const statusData = {
+    labels: ['Programadas', 'Completadas', 'Canceladas', 'Ausencias'],
+    datasets: [{
+        data: [
+            {{ stats.scheduled_appointments }},
+            {{ stats.completed_appointments }},
+            {{ stats.cancelled_appointments }},
+            {{ stats.no_show_appointments }}
+        ],
+        backgroundColor: [
+            '#6c757d',
+            '#198754',
+            '#dc3545',
+            '#ffc107'
+        ],
+        borderWidth: 2,
+        borderColor: '#ffffff'
+    }]
+};
+
+const monthlyData = {
+    labels: [{% for month in monthly_stats %}'{{ month.month_name }}'{% if not loop.last %},{% endif %}{% endfor %}],
+    datasets: [
+        {
+            label: 'Citas',
+            data: [{% for month in monthly_stats %}{{ month.appointments }}{% if not loop.last %},{% endif %}{% endfor %}],
+            borderColor: '#0d6efd',
+            backgroundColor: '#0d6efd20',
+            tension: 0.4
+        },
+        {
+            label: 'Nuevos Pacientes',
+            data: [{% for month in monthly_stats %}{{ month.new_patients }}{% if not loop.last %},{% endif %}{% endfor %}],
+            borderColor: '#198754',
+            backgroundColor: '#19875420',
+            tension: 0.4
+        },
+        {
+            label: 'Registros Médicos',
+            data: [{% for month in monthly_stats %}{{ month.medical_records }}{% if not loop.last %},{% endif %}{% endfor %}],
+            borderColor: '#ffc107',
+            backgroundColor: '#ffc10720',
+            tension: 0.4
+        }
+    ]
+};
+
+// Configurar gráficos
+const statusChart = new Chart(document.getElementById('statusChart'), {
+    type: 'doughnut',
+    data: statusData,
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom'
+            },
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                        const percentage = ((context.parsed / total) * 100).toFixed(1);
+                        return context.label + ': ' + context.parsed + ' (' + percentage + '%)';
+                    }
+                }
+            }
+        }
+    }
+});
+
+const monthlyChart = new Chart(document.getElementById('monthlyChart'), {
+    type: 'line',
+    data: monthlyData,
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'top'
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    stepSize: 1
+                }
+            }
+        }
+    }
+});
+
+// Funciones de utilidad
+function updatePeriod() {
+    const period = document.getElementById('period').value;
+    if (period !== 'custom') {
+        const endDate = new Date();
+        const startDate = new Date();
+        startDate.setDate(endDate.getDate() - parseInt(period));
+        
+        document.getElementById('start_date').value = startDate.toISOString().split('T')[0];
+        document.getElementById('end_date').value = endDate.toISOString().split('T')[0];
+    }
+}
+
+function exportReport(format) {
+    const startDate = document.getElementById('start_date').value;
+    const endDate = document.getElementById('end_date').value;
+    const period = document.getElementById('period') ? document.getElementById('period').value : '';
+    let url = `{{ url_for('admin.export_reports', format='FORMAT') }}`.replace('FORMAT', format) +
+              `?start_date=${startDate}&end_date=${endDate}`;
+    if (period) {
+        url += `&period=${period}`;
+    }
+    window.open(url, '_blank');
+}
+
+function refreshData() {
+    location.reload();
+}
+
+// Actualizar datos automáticamente cada 5 minutos
+setInterval(function() {
+    fetch(`{{ url_for('admin.api_general_stats') }}?start_date=${document.getElementById('start_date').value}&end_date=${document.getElementById('end_date').value}`)
+        .then(response => response.json())
+        .then(data => {
+            // Actualizar estadísticas principales si es necesario
+            console.log('Datos actualizados:', data);
+        })
+        .catch(error => console.error('Error al actualizar datos:', error));
+}, 300000); // 5 minutos
+</script>
+{% endblock %}

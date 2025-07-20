@@ -1,0 +1,457 @@
+{% extends "base.html" %}
+
+{% block title %}Historial del Paciente - {{ patient.first_name }} {{ patient.last_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Sidebar -->
+        <nav class="col-md-3 col-lg-2 d-md-block bg-light sidebar collapse">
+            {% include 'shared/sidebar.html' %}
+        </nav>
+
+        <!-- Main content -->
+        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                <h1 class="h2">
+                    <i class="fas fa-user-md me-2"></i>
+                    Historial del Paciente
+                </h1>
+                <div class="btn-toolbar mb-2 mb-md-0">
+                    <div class="btn-group me-2">
+                        <a href="{{ url_for('doctor.clinical_histories') }}" class="btn btn-sm btn-outline-secondary">
+                            <i class="fas fa-arrow-left me-1"></i>
+                            Volver
+                        </a>
+                        <a href="{{ url_for('doctor.new_medical_record') }}?patient_id={{ patient.id }}" 
+                           class="btn btn-sm btn-primary">
+                            <i class="fas fa-plus me-1"></i>
+                            Nuevo Historial
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <!-- Información del paciente -->
+                <div class="col-12">
+                    <div class="card mb-4">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0">
+                                <i class="fas fa-user me-2"></i>
+                                {{ patient.first_name }} {{ patient.last_name }}
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <dl class="row">
+                                        <dt class="col-sm-5">DNI:</dt>
+                                        <dd class="col-sm-7">{{ patient.dni }}</dd>
+                                        
+                                        <dt class="col-sm-5">Edad:</dt>
+                                        <dd class="col-sm-7">{{ patient.age }} años</dd>
+                                        
+                                        <dt class="col-sm-5">Género:</dt>
+                                        <dd class="col-sm-7">
+                                            {% if patient.gender == 'M' %}Masculino{% else %}Femenino{% endif %}
+                                        </dd>
+                                    </dl>
+                                </div>
+                                <div class="col-md-3">
+                                    <dl class="row">
+                                        <dt class="col-sm-5">Teléfono:</dt>
+                                        <dd class="col-sm-7">{{ patient.phone }}</dd>
+                                        
+                                        <dt class="col-sm-5">Email:</dt>
+                                        <dd class="col-sm-7">{{ patient.email }}</dd>
+                                        
+                                        <dt class="col-sm-5">Tipo Sangre:</dt>
+                                        <dd class="col-sm-7">
+                                            <span class="badge bg-info">{{ patient.blood_type }}</span>
+                                        </dd>
+                                    </dl>
+                                </div>
+                                <div class="col-md-3">
+                                    <dl class="row">
+                                        <dt class="col-sm-6">Dirección:</dt>
+                                        <dd class="col-sm-6">{{ patient.address }}</dd>
+                                        
+                                        <dt class="col-sm-6">Registrado:</dt>
+                                        <dd class="col-sm-6">{{ patient.created_at.strftime('%d/%m/%Y') }}</dd>
+                                    </dl>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="text-center">
+                                        <div class="mb-2">
+                                            <span class="badge bg-success fs-6">
+                                                <i class="fas fa-clipboard-list me-1"></i>
+                                                {{ medical_records|length }} Historiales
+                                            </span>
+                                        </div>
+                                        <div>
+                                            <span class="badge bg-info fs-6">
+                                                <i class="fas fa-calendar-check me-1"></i>
+                                                {{ appointments|length }} Citas
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabs para organizar la información -->
+            <ul class="nav nav-tabs" id="patientHistoryTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="medical-records-tab" data-bs-toggle="tab" 
+                            data-bs-target="#medical-records" type="button" role="tab">
+                        <i class="fas fa-clipboard-list me-1"></i>
+                        Historiales Médicos ({{ medical_records|length }})
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="appointments-tab" data-bs-toggle="tab" 
+                            data-bs-target="#appointments" type="button" role="tab">
+                        <i class="fas fa-calendar-check me-1"></i>
+                        Citas Médicas ({{ appointments|length }})
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="timeline-tab" data-bs-toggle="tab" 
+                            data-bs-target="#timeline" type="button" role="tab">
+                        <i class="fas fa-clock me-1"></i>
+                        Línea de Tiempo
+                    </button>
+                </li>
+            </ul>
+
+            <div class="tab-content" id="patientHistoryTabsContent">
+                <!-- Tab de Historiales Médicos -->
+                <div class="tab-pane fade show active" id="medical-records" role="tabpanel">
+                    <div class="card">
+                        <div class="card-body">
+                            {% if medical_records %}
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Fecha</th>
+                                            <th>Doctor</th>
+                                            <th>Diagnóstico</th>
+                                            <th>Síntomas</th>
+                                            <th>Tratamiento</th>
+                                            <th>Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for record in medical_records %}
+                                        <tr>                                            <td>
+                                                <span class="fw-bold">{{ record.consultation_date.strftime('%d/%m/%Y') }}</span>
+                                                <br>
+                                                <small class="text-muted">{{ record.consultation_date.strftime('%H:%M') }}</small>
+                                            </td>
+                                            <td>
+                                                <span>{{ record.doctor.first_name }} {{ record.doctor.last_name }}</span>
+                                                <br>
+                                                <small class="text-muted">{{ record.doctor.specialty.name if record.doctor.specialty else 'General' }}</small>
+                                            </td>
+                                            <td>
+                                                <span class="text-truncate d-inline-block" style="max-width: 200px;" 
+                                                      title="{{ record.diagnosis }}">
+                                                    {{ (record.diagnosis or '')[:60] }}{% if (record.diagnosis or '')|length > 60 %}...{% endif %}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <span class="text-truncate d-inline-block" style="max-width: 150px;" 
+                                                      title="{{ record.symptoms }}">
+                                                    {{ (record.symptoms or '')[:50] }}{% if (record.symptoms or '')|length > 50 %}...{% endif %}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <span class="text-truncate d-inline-block" style="max-width: 150px;" 
+                                                      title="{{ record.treatment }}">
+                                                    {{ (record.treatment or '')[:50] }}{% if (record.treatment or '')|length > 50 %}...{% endif %}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <div class="btn-group btn-group-sm" role="group">
+                                                    <a href="{{ url_for('doctor.view_medical_record', id=record.id) }}" 
+                                                       class="btn btn-outline-primary" title="Ver Detalles">
+                                                        <i class="fas fa-eye"></i>
+                                                    </a>
+                                                    <a href="{{ url_for('doctor.edit_medical_record', id=record.id) }}" 
+                                                       class="btn btn-outline-warning" title="Editar">
+                                                        <i class="fas fa-edit"></i>
+                                                    </a>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <div class="text-center py-4">
+                                <i class="fas fa-clipboard-list fa-3x text-muted mb-3"></i>
+                                <h5>No hay historiales médicos</h5>
+                                <p class="text-muted">Este paciente aún no tiene historiales médicos registrados.</p>
+                                <a href="{{ url_for('doctor.new_medical_record') }}?patient_id={{ patient.id }}" 
+                                   class="btn btn-primary">
+                                    <i class="fas fa-plus me-2"></i>
+                                    Crear Primer Historial
+                                </a>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab de Citas Médicas -->
+                <div class="tab-pane fade" id="appointments" role="tabpanel">
+                    <div class="card">
+                        <div class="card-body">
+                            {% if appointments %}
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Fecha</th>
+                                            <th>Hora</th>
+                                            <th>Doctor</th>
+                                            <th>Especialidad</th>
+                                            <th>Estado</th>
+                                            <th>Motivo</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for appointment in appointments %}
+                                        <tr>                                            <td>{{ appointment.date_time.strftime('%d/%m/%Y') }}</td>
+                                            <td>{{ appointment.date_time.strftime('%H:%M') }}</td>
+                                            <td>{{ appointment.doctor.first_name }} {{ appointment.doctor.last_name }}</td>
+                                            <td>{{ appointment.doctor.specialty.name if appointment.doctor.specialty else 'General' }}</td>
+                                            <td>
+                                                {% if appointment.status == 'completed' %}
+                                                    <span class="badge bg-success">Completada</span>
+                                                {% elif appointment.status == 'cancelled' %}
+                                                    <span class="badge bg-danger">Cancelada</span>
+                                                {% elif appointment.status == 'scheduled' %}
+                                                    <span class="badge bg-primary">Programada</span>
+                                                {% else %}
+                                                    <span class="badge bg-warning">{{ appointment.status.title() }}</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <span class="text-truncate d-inline-block" style="max-width: 200px;" 
+                                                      title="{{ appointment.reason }}">
+                                                    {{ (appointment.reason or '')[:50] }}{% if (appointment.reason or '')|length > 50 %}...{% endif %}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <div class="text-center py-4">
+                                <i class="fas fa-calendar-check fa-3x text-muted mb-3"></i>
+                                <h5>No hay citas médicas</h5>
+                                <p class="text-muted">Este paciente aún no tiene citas médicas registradas.</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab de Línea de Tiempo -->
+                <div class="tab-pane fade" id="timeline" role="tabpanel">
+                    <div class="card">
+                        <div class="card-body">
+                            {% if timeline %}
+                            <div class="timeline">
+                                {% for event in timeline %}
+                                <div class="timeline-item">
+                                    <div class="timeline-marker">
+                                        {% if event.type == 'medical_record' %}
+                                            <i class="fas fa-clipboard-list text-primary"></i>
+                                        {% else %}
+                                            <i class="fas fa-calendar-check text-info"></i>
+                                        {% endif %}
+                                    </div>
+                                    <div class="timeline-content">
+                                        <div class="timeline-header">
+                                            <h6 class="mb-1">
+                                                {% if event.type == 'medical_record' %}
+                                                    Historial Médico
+                                                {% else %}
+                                                    Cita Médica
+                                                {% endif %}
+                                            </h6>
+                                            <small class="text-muted">{{ event.date.strftime('%d/%m/%Y %H:%M') }}</small>
+                                        </div>
+                                        <div class="timeline-body">
+                                            <p class="mb-1">
+                                                <strong>Doctor:</strong> {{ event.doctor }}
+                                            </p>                                            {% if event.type == 'medical_record' %}
+                                                <p class="mb-1">
+                                                    <strong>Diagnóstico:</strong> {{ (event.diagnosis or '')[:100] }}{% if (event.diagnosis or '')|length > 100 %}...{% endif %}
+                                                </p>
+                                                <a href="{{ url_for('doctor.view_medical_record', id=event.id) }}" 
+                                                   class="btn btn-sm btn-outline-primary">Ver Historial</a>
+                                            {% else %}
+                                                <p class="mb-1">
+                                                    <strong>Motivo:</strong> {{ (event.reason or '')[:100] }}{% if (event.reason or '')|length > 100 %}...{% endif %}
+                                                </p>
+                                                <span class="badge bg-{{ 'success' if event.status == 'completed' else 'primary' }}">
+                                                    {{ event.status.title() }}
+                                                </span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% else %}
+                            <div class="text-center py-4">
+                                <i class="fas fa-clock fa-3x text-muted mb-3"></i>
+                                <h5>No hay eventos en el historial</h5>
+                                <p class="text-muted">Este paciente aún no tiene eventos registrados en su historial.</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+
+<style>
+.sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 100;
+    padding: 48px 0 0;
+    box-shadow: inset -1px 0 0 rgba(0, 0, 0, .1);
+}
+
+main {
+    margin-left: 16.66667%;
+}
+
+@media (max-width: 767.98px) {
+    .sidebar {
+        top: 5rem;
+    }
+    
+    main {
+        margin-left: 0;
+    }
+}
+
+.text-truncate {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.nav-tabs .nav-link {
+    color: #495057;
+    border: 1px solid transparent;
+}
+
+.nav-tabs .nav-link:hover {
+    border-color: #e9ecef #e9ecef #dee2e6;
+}
+
+.nav-tabs .nav-link.active {
+    color: #495057;
+    background-color: #fff;
+    border-color: #dee2e6 #dee2e6 #fff;
+}
+
+.tab-content {
+    border: 1px solid #dee2e6;
+    border-top: 0;
+    border-radius: 0 0 0.375rem 0.375rem;
+}
+
+.tab-content .card {
+    border: 0;
+    border-radius: 0;
+}
+
+/* Timeline styles */
+.timeline {
+    position: relative;
+    padding-left: 3rem;
+}
+
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 1.5rem;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: #dee2e6;
+}
+
+.timeline-item {
+    position: relative;
+    margin-bottom: 2rem;
+}
+
+.timeline-marker {
+    position: absolute;
+    left: -3rem;
+    top: 0;
+    width: 3rem;
+    height: 3rem;
+    border-radius: 50%;
+    background: white;
+    border: 2px solid #dee2e6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+}
+
+.timeline-content {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+    padding: 1rem;
+}
+
+.timeline-header {
+    display: flex;
+    justify-content: between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.timeline-body p {
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.timeline-body p:last-child {
+    margin-bottom: 0;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Activar los tabs de Bootstrap
+    var tabTriggerList = [].slice.call(document.querySelectorAll('#patientHistoryTabs button'));
+    tabTriggerList.forEach(function (tabTrigger) {
+        new bootstrap.Tab(tabTrigger);
+    });
+});
+</script>
+{% endblock %}

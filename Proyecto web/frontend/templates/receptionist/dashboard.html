@@ -1,0 +1,251 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard Recepción - Sistema de Gestión Médica{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">
+        <i class="bi bi-clipboard-heart"></i> Dashboard Recepción
+    </h1>
+    <div class="text-muted">
+        <i class="bi bi-person-badge"></i> {{ current_user.full_name }}
+    </div>
+</div>
+
+<!-- Bienvenida personalizada -->
+<div class="alert alert-info d-flex align-items-center mb-4" role="alert">
+    <i class="bi bi-headset me-3" style="font-size: 1.5rem;"></i>
+    <div>
+        <h5 class="alert-heading mb-1">¡Bienvenida, {{ current_user.first_name }}!</h5>
+        <p class="mb-0">Tienes {{ today_appointments|length }} citas programadas para gestionar hoy.</p>
+    </div>
+</div>
+
+<!-- Métricas principales -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card text-white bg-primary">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <div class="card-title h3 mb-0">{{ today_appointments|length }}</div>
+                        <p class="card-text">Citas Hoy</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-calendar-day" style="font-size: 2rem;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card text-white bg-success">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <div class="card-title h3 mb-0">{{ total_patients }}</div>
+                        <p class="card-text">Total Pacientes</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-people" style="font-size: 2rem;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card text-white bg-warning">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <div class="card-title h3 mb-0">{{ new_patients_today }}</div>
+                        <p class="card-text">Nuevos Hoy</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-person-plus" style="font-size: 2rem;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card text-white bg-info">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <div class="card-title h3 mb-0">{{ pending_payments }}</div>
+                        <p class="card-text">Pagos Pendientes</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-credit-card" style="font-size: 2rem;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Contenido principal -->
+<div class="row">
+    <!-- Citas del día -->
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="bi bi-calendar-check"></i> Agenda del Día
+                </h5>
+                <button class="btn btn-primary btn-sm" onclick="scheduleNewAppointment()">
+                    <i class="bi bi-plus-circle"></i> Nueva Cita
+                </button>
+            </div>
+            <div class="card-body">
+                {% if today_appointments %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Hora</th>
+                                    <th>Paciente</th>
+                                    <th>Médico</th>
+                                    <th>Especialidad</th>
+                                    <th>Estado</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for appointment in today_appointments %}
+                                <tr>
+                                    <td><strong>{{ appointment.date_time.strftime('%H:%M') }}</strong></td>
+                                    <td>
+                                        <div>{{ appointment.patient.full_name }}</div>
+                                        <small class="text-muted">DNI: {{ appointment.patient.dni }}</small>
+                                        <br>
+                                        <span class="badge bg-light text-dark">{{ appointment.patient.age_group_label }}</span>
+                                    </td>
+                                    <td>Dr. {{ appointment.doctor.full_name }}</td>
+                                    <td>{{ appointment.specialty.name }}</td>
+                                    <td>
+                                        {% if appointment.status == 'scheduled' %}
+                                            <span class="badge bg-warning">Programada</span>
+                                        {% elif appointment.status == 'completed' %}
+                                            <span class="badge bg-success">Completada</span>
+                                        {% elif appointment.status == 'cancelled' %}
+                                            <span class="badge bg-danger">Cancelada</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            {% if appointment.status == 'scheduled' %}
+                                                <button class="btn btn-outline-success" title="Confirmar llegada" 
+                                                        onclick="confirmArrival({{ appointment.id }})">
+                                                    <i class="bi bi-check-circle"></i>
+                                                </button>
+                                                <button class="btn btn-outline-warning" title="Reagendar"
+                                                        onclick="rescheduleAppointment({{ appointment.id }})">
+                                                    <i class="bi bi-calendar-event"></i>
+                                                </button>
+                                                <button class="btn btn-outline-danger" title="Cancelar"
+                                                        onclick="cancelAppointment({{ appointment.id }})">
+                                                    <i class="bi bi-x-circle"></i>
+                                                </button>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="bi bi-calendar-x text-muted" style="font-size: 3rem;"></i>
+                        <h5 class="text-muted mt-3">No hay citas programadas para hoy</h5>
+                        <p class="text-muted">¡Un día tranquilo en recepción!</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Pacientes recientes -->
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="bi bi-clock-history"></i> Pacientes Recientes
+                </h6>
+            </div>
+            <div class="card-body">
+                {% if recent_patients %}
+                    {% for patient in recent_patients[:5] %}
+                    <div class="border-bottom pb-2 mb-2">
+                        <div class="fw-bold">{{ patient.full_name }}</div>
+                        <small class="text-muted">
+                            DNI: {{ patient.dni }} | 
+                            {{ patient.created_at.strftime('%d/%m/%Y') }}
+                        </small>
+                        <div class="small">{{ patient.phone }}</div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted small">No hay registros recientes</p>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Estado del sistema -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="bi bi-activity"></i> Estado del Sistema
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-6">
+                        <div class="h4 text-success">{{ active_doctors }}</div>
+                        <small class="text-muted">Médicos Activos</small>
+                    </div>
+                    <div class="col-6">
+                        <div class="h4 text-primary">{{ specialties_count }}</div>
+                        <small class="text-muted">Especialidades</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function confirmArrival(appointmentId) {
+    if (confirm('¿Confirmar llegada del paciente?')) {
+        // Implementar confirmación de llegada
+        console.log('Confirmar llegada para cita:', appointmentId);
+    }
+}
+
+function rescheduleAppointment(appointmentId) {
+    window.location.href = `/receptionist/appointments/${appointmentId}/reschedule`;
+}
+
+function cancelAppointment(appointmentId) {
+    if (confirm('¿Está seguro de que desea cancelar esta cita?')) {
+        // Implementar cancelación
+        console.log('Cancelar cita:', appointmentId);
+    }
+}
+
+function cancelAppointment(appointmentId) {
+    if (confirm('¿Está seguro de cancelar esta cita?')) {
+        // Implementar cancelación
+        console.log('Cancelar cita:', appointmentId);
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,27 @@
+Usuario: admin
+Contraseña: admin123
+Email: admin@clinica.com
+
+==========================================
+
+Recepcionista 2:
+
+Usuario: recep.sofia
+Contraseña: recep123
+Email: sofia@clinica.com
+Nombre: Sofía Torres
+
+
+==============================================
+
+Doctor 2:
+
+Usuario: dr.rodriguez
+Contraseña: doc123
+Email: rodriguez@clinica.com
+Nombre: Miguel Rodríguez
+
+==============================================
+Usuario enfermera:
+Usuario: enf.carmen
+Contraseña: enf123

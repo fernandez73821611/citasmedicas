@@ -1,0 +1,445 @@
+{% extends "base.html" %}
+
+{% block title %}Consulta Médica - {{ appointment.patient.first_name }} {{ appointment.patient.last_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Sidebar -->
+        <nav class="col-md-3 col-lg-2 d-md-block bg-light sidebar collapse">
+            {% include 'shared/sidebar.html' %}
+        </nav>
+
+        <!-- Main content -->
+        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                <h1 class="h2">
+                    <i class="fas fa-user-md me-2"></i>
+                    Consulta Médica
+                </h1>
+                <div class="btn-toolbar mb-2 mb-md-0">
+                    <div class="btn-group me-2">
+                        <a href="{{ url_for('doctor.dashboard') }}" class="btn btn-sm btn-outline-secondary">
+                            <i class="fas fa-arrow-left me-1"></i>
+                            Volver al Dashboard
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <!-- Información de la cita y paciente -->
+                <div class="col-lg-4">
+                    <!-- Información de la cita -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-primary text-white">
+                            <h6 class="mb-0">
+                                <i class="fas fa-calendar-check me-2"></i>
+                                Información de la Cita
+                            </h6>
+                        </div>
+                        <div class="card-body">                            <dl class="row mb-0">
+                                <dt class="col-5">Fecha:</dt>
+                                <dd class="col-7">{{ appointment.date_time.strftime('%d/%m/%Y') }}</dd>
+                                
+                                <dt class="col-5">Hora:</dt>
+                                <dd class="col-7">{{ appointment.date_time.strftime('%H:%M') }}</dd>
+                                
+                                <dt class="col-5">Especialidad:</dt>
+                                <dd class="col-7">{{ appointment.doctor.specialty.name if appointment.doctor.specialty else 'General' }}</dd>
+                                
+                                <dt class="col-5">Estado:</dt>
+                                <dd class="col-7">
+                                    <span class="badge bg-warning">{{ appointment.status.title() }}</span>
+                                </dd>
+                                
+                                <dt class="col-5">Motivo:</dt>
+                                <dd class="col-7">{{ appointment.reason }}</dd>
+                            </dl>
+                        </div>
+                    </div>
+
+                    <!-- Información del paciente -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-info text-white">
+                            <h6 class="mb-0">
+                                <i class="fas fa-user me-2"></i>
+                                Paciente
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <dl class="row mb-2">
+                                <dt class="col-5">Nombre:</dt>
+                                <dd class="col-7">{{ appointment.patient.first_name }} {{ appointment.patient.last_name }}</dd>
+                                
+                                <dt class="col-5">DNI:</dt>
+                                <dd class="col-7">{{ appointment.patient.dni }}</dd>
+                                
+                                <dt class="col-5">Edad:</dt>
+                                <dd class="col-7">{{ appointment.patient.age }} años</dd>
+                                
+                                <dt class="col-5">Género:</dt>
+                                <dd class="col-7">{% if appointment.patient.gender == 'M' %}Masculino{% else %}Femenino{% endif %}</dd>
+                                
+                                <dt class="col-5">Teléfono:</dt>
+                                <dd class="col-7">{{ appointment.patient.phone }}</dd>
+                                
+                                <dt class="col-5">Email:</dt>
+                                <dd class="col-7">{{ appointment.patient.email }}</dd>
+                                
+                                <dt class="col-5">Tipo Sangre:</dt>
+                                <dd class="col-7">
+                                    <span class="badge bg-danger">{{ appointment.patient.blood_type }}</span>
+                                </dd>
+                            </dl>
+                              <div class="mt-3">
+                                <a href="{{ url_for('doctor.patient_history', patient_id=appointment.patient.id) }}" 
+                                   class="btn btn-sm btn-outline-primary w-100">
+                                    <i class="fas fa-history me-1"></i>
+                                    Ver Historial Completo
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Historiales previos (últimos 3) -->
+                    {% if previous_records %}
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0">
+                                <i class="fas fa-clipboard-list me-2"></i>
+                                Últimos Historiales
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            {% for record in previous_records[:3] %}
+                            <div class="mb-3 {% if not loop.last %}border-bottom pb-3{% endif %}">
+                                <div class="d-flex justify-content-between align-items-start mb-1">
+                                    <small class="text-muted">{{ record.consultation_date.strftime('%d/%m/%Y') }}</small>
+                                    <a href="{{ url_for('doctor.view_medical_record', id=record.id) }}" 
+                                       class="btn btn-outline-primary btn-sm">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                </div>
+                                <p class="mb-1 small">
+                                    <strong>Diagnóstico:</strong> 
+                                    {{ (record.diagnosis or '')[:60] }}{% if (record.diagnosis or '')|length > 60 %}...{% endif %}
+                                </p>
+                                <p class="mb-0 small text-muted">
+                                    <strong>Doctor:</strong> {{ record.doctor.first_name }} {{ record.doctor.last_name }}
+                                </p>
+                            </div>
+                            {% endfor %}
+                            
+                            {% if previous_records|length > 3 %}                            <div class="text-center">
+                                <a href="{{ url_for('doctor.patient_history', patient_id=appointment.patient.id) }}" 
+                                   class="btn btn-sm btn-outline-secondary">
+                                    Ver todos ({{ previous_records|length }})
+                                </a>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Formulario de consulta -->
+                <div class="col-lg-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="fas fa-file-medical me-2"></i>
+                                Registro de Consulta Médica
+                            </h5>
+                        </div>
+                        <div class="card-body">                            <form method="POST" id="consultationForm">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                
+                                <!-- Síntomas actuales -->
+                                <div class="mb-4">
+                                    <label for="symptoms" class="form-label">
+                                        <i class="fas fa-thermometer-half me-1"></i>
+                                        Síntomas Presentados <span class="text-danger">*</span>
+                                    </label>
+                                    <textarea class="form-control" id="symptoms" name="symptoms" rows="4" 
+                                              placeholder="Describa detalladamente los síntomas que presenta el paciente en esta consulta..." required></textarea>
+                                    <div class="form-text">
+                                        Motivo de consulta: {{ appointment.reason }}
+                                    </div>
+                                </div>
+
+                                <!-- Examen físico -->
+                                <div class="mb-4">
+                                    <label for="physical_exam" class="form-label">
+                                        <i class="fas fa-user-check me-1"></i>
+                                        Examen Físico
+                                    </label>
+                                    <textarea class="form-control" id="physical_exam" name="physical_exam" rows="3" 
+                                              placeholder="Resultados del examen físico realizado..."></textarea>
+                                    <div class="form-text">
+                                        Incluya signos vitales, hallazgos físicos relevantes, etc.
+                                    </div>
+                                </div>
+
+                                <!-- Diagnóstico -->
+                                <div class="mb-4">
+                                    <label for="diagnosis" class="form-label">
+                                        <i class="fas fa-stethoscope me-1"></i>
+                                        Diagnóstico <span class="text-danger">*</span>
+                                    </label>
+                                    <textarea class="form-control" id="diagnosis" name="diagnosis" rows="3" 
+                                              placeholder="Escriba el diagnóstico médico basado en los síntomas y examen..." required></textarea>
+                                    <div class="form-text">
+                                        Diagnóstico principal y diagnósticos diferenciales si aplica
+                                    </div>
+                                </div>
+
+                                <!-- Tratamiento -->
+                                <div class="mb-4">
+                                    <label for="treatment" class="form-label">
+                                        <i class="fas fa-pills me-1"></i>
+                                        Tratamiento Prescrito <span class="text-danger">*</span>
+                                    </label>
+                                    <textarea class="form-control" id="treatment" name="treatment" rows="4" 
+                                              placeholder="Detalle el tratamiento prescrito, incluyendo medicamentos, dosis, duración..." required></textarea>
+                                    <div class="form-text">
+                                        Incluya medicamentos con dosis exactas, frecuencia y duración
+                                    </div>
+                                </div>
+
+                                <!-- Observaciones y recomendaciones -->
+                                <div class="mb-4">
+                                    <label for="observations" class="form-label">
+                                        <i class="fas fa-notes-medical me-1"></i>
+                                        Observaciones y Recomendaciones
+                                    </label>
+                                    <textarea class="form-control" id="observations" name="observations" rows="3" 
+                                              placeholder="Recomendaciones adicionales, cuidados especiales, seguimiento..."></textarea>
+                                    <div class="form-text">
+                                        Instrucciones para el paciente, próximas citas, etc.
+                                    </div>
+                                </div>
+
+                                <!-- Próxima cita -->
+                                <div class="row mb-4">
+                                    <div class="col-md-6">
+                                        <label for="next_appointment" class="form-label">
+                                            <i class="fas fa-calendar-plus me-1"></i>
+                                            ¿Requiere próxima cita?
+                                        </label>
+                                        <select class="form-control" id="next_appointment" name="next_appointment">
+                                            <option value="no">No requiere</option>
+                                            <option value="follow_up">Control de seguimiento</option>
+                                            <option value="specialist">Derivar a especialista</option>
+                                            <option value="tests">Para resultados de exámenes</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="next_appointment_notes" class="form-label">
+                                            Notas para próxima cita
+                                        </label>
+                                        <input type="text" class="form-control" id="next_appointment_notes" 
+                                               name="next_appointment_notes" 
+                                               placeholder="Motivo o especialidad requerida...">
+                                    </div>
+                                </div>
+
+                                <!-- Botones de acción -->
+                                <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                    <button type="button" class="btn btn-outline-secondary me-md-2" onclick="saveDraft()">
+                                        <i class="fas fa-save me-1"></i>
+                                        Guardar Borrador
+                                    </button>
+                                    <button type="submit" class="btn btn-success">
+                                        <i class="fas fa-check me-1"></i>
+                                        Completar Consulta
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+
+<!-- Modal de confirmación -->
+<div class="modal fade" id="confirmModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-check-circle me-2"></i>
+                    Confirmar Consulta
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>¿Está seguro de que desea completar esta consulta?</p>
+                <p class="text-muted">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Se creará un historial médico y la cita se marcará como completada.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-success" onclick="submitForm()">
+                    <i class="fas fa-check me-1"></i>
+                    Sí, Completar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 100;
+    padding: 48px 0 0;
+    box-shadow: inset -1px 0 0 rgba(0, 0, 0, .1);
+}
+
+main {
+    margin-left: 16.66667%;
+}
+
+@media (max-width: 767.98px) {
+    .sidebar {
+        top: 5rem;
+    }
+    
+    main {
+        margin-left: 0;
+    }
+}
+
+textarea {
+    resize: vertical;
+    min-height: 80px;
+}
+
+.form-control:focus {
+    border-color: #80bdff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+.is-invalid {
+    border-color: #dc3545;
+}
+
+.is-invalid:focus {
+    border-color: #dc3545;
+    box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
+}
+
+dl {
+    margin-bottom: 0;
+}
+
+dt {
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+dd {
+    font-size: 0.9rem;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-expandir textareas según el contenido
+    const textareas = document.querySelectorAll('textarea');
+    textareas.forEach(function(textarea) {
+        textarea.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = this.scrollHeight + 'px';
+        });
+    });
+
+    // Mostrar/ocultar campo de notas según selección
+    const nextAppointmentSelect = document.getElementById('next_appointment');
+    const nextAppointmentNotes = document.getElementById('next_appointment_notes');
+    
+    nextAppointmentSelect.addEventListener('change', function() {
+        if (this.value === 'no') {
+            nextAppointmentNotes.disabled = true;
+            nextAppointmentNotes.value = '';
+        } else {
+            nextAppointmentNotes.disabled = false;
+        }
+    });
+
+    // Validación del formulario con modal de confirmación
+    const form = document.getElementById('consultationForm');
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const requiredFields = form.querySelectorAll('[required]');
+        let isValid = true;
+
+        requiredFields.forEach(function(field) {
+            if (!field.value.trim()) {
+                isValid = false;
+                field.classList.add('is-invalid');
+            } else {
+                field.classList.remove('is-invalid');
+            }
+        });
+
+        if (!isValid) {
+            alert('Por favor complete todos los campos obligatorios.');
+            return;
+        }
+
+        // Mostrar modal de confirmación
+        const confirmModal = new bootstrap.Modal(document.getElementById('confirmModal'));
+        confirmModal.show();
+    });
+
+    // Auto-save cada 2 minutos
+    setInterval(saveDraft, 120000);
+});
+
+function saveDraft() {
+    const formData = new FormData(document.getElementById('consultationForm'));
+    
+    // Aquí se podría implementar el guardado automático
+    console.log('Borrador guardado automáticamente');
+    
+    // Mostrar notificación temporal
+    showNotification('Borrador guardado', 'info');
+}
+
+function submitForm() {
+    document.getElementById('consultationForm').submit();
+}
+
+function showNotification(message, type = 'info') {
+    // Crear notificación temporal
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    notification.style.top = '20px';
+    notification.style.right = '20px';
+    notification.style.zIndex = '9999';
+    notification.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Auto-remover después de 3 segundos
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.parentNode.removeChild(notification);
+        }
+    }, 3000);
+}
+</script>
+{% endblock %}

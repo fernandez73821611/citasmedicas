@@ -1,0 +1,110 @@
+<nav id="sidebarMenu" class="col-md-3 col-lg-2 d-md-block bg-light sidebar collapse">
+    <div class="position-sticky pt-3">
+        {% if current_user.role == 'admin' %}            <!-- Menú Administrador -->
+            <ul class="nav flex-column">
+                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if request.endpoint == 'admin.dashboard' }}" href="{{ url_for('admin.dashboard') }}">
+                        <i class="bi bi-speedometer2"></i> Dashboard
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if request.endpoint == 'admin.users' }}" href="{{ url_for('admin.users') }}">
+                        <i class="bi bi-people"></i> Gestión de Usuarios
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if request.endpoint == 'admin.patients' }}" href="{{ url_for('admin.patients') }}">
+                        <i class="bi bi-person-lines-fill"></i> Todos los Pacientes
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if 'admin.specialties' in request.endpoint or 'admin.add_specialty' in request.endpoint or 'admin.edit_specialty' in request.endpoint }}" href="{{ url_for('admin.specialties') }}">
+                        <i class="bi bi-heart-pulse"></i> Especialidades Médicas
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if 'admin.work_schedule' in request.endpoint or 'admin.doctor_schedule' in request.endpoint or 'admin.create_work_schedule' in request.endpoint or 'admin.edit_work_schedule' in request.endpoint }}" href="{{ url_for('admin.work_schedules') }}">
+                        <i class="bi bi-clock"></i> Horarios de Trabajo
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if 'admin.salary_management' in request.endpoint or 'admin.commission_reports' in request.endpoint }}" href="{{ url_for('admin.salary_management') }}">
+                        <i class="bi bi-percent"></i> Gestión de Comisiones
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if request.endpoint == 'admin.reports' }}" href="{{ url_for('admin.reports') }}">
+                        <i class="bi bi-graph-up"></i> Reportes
+                    </a>
+                </li>
+            </ul>
+          {% elif current_user.role == 'doctor' %}
+            <!-- Menú Médico -->
+            <ul class="nav flex-column">
+                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if request.endpoint == 'doctor.dashboard' }}" href="{{ url_for('doctor.dashboard') }}">
+                        <i class="bi bi-speedometer2"></i> Dashboard
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if 'doctor.appointment' in request.endpoint }}" href="{{ url_for('doctor.appointments') }}">
+                        <i class="bi bi-calendar-check"></i> Mis Citas
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if 'doctor.clinical_histories' in request.endpoint }}" href="{{ url_for('doctor.clinical_histories') }}">
+                        <i class="bi bi-file-earmark-medical"></i> Historias Clínicas
+                    </a>
+                </li>
+            </ul>
+        
+        {% elif current_user.role == 'receptionist' %}            <!-- Menú Recepcionista -->
+            <ul class="nav flex-column">
+                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if request.endpoint == 'receptionist.dashboard' }}" href="{{ url_for('receptionist.dashboard') }}">
+                        <i class="bi bi-speedometer2"></i> Dashboard
+                    </a>
+                </li>                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if request.endpoint == 'receptionist.patients' }}" href="{{ url_for('receptionist.patients') }}">
+                        <i class="bi bi-person-plus"></i> Gestión de Pacientes
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if request.endpoint in ['receptionist.new_appointment', 'receptionist.schedule'] }}" href="{{ url_for('receptionist.new_appointment') }}">
+                        <i class="bi bi-calendar-plus"></i> Programar Citas
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if request.endpoint in ['receptionist.appointments', 'receptionist.new_appointment', 'receptionist.edit_appointment', 'receptionist.view_appointment'] }}" href="{{ url_for('receptionist.appointments') }}">
+                        <i class="bi bi-calendar-check"></i> Gestión de Citas
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if request.endpoint == 'receptionist.billing' }}" href="{{ url_for('receptionist.billing') }}">
+                        <i class="bi bi-receipt"></i> Facturación
+                    </a>
+                </li>
+            </ul>
+        
+        {% elif current_user.role == 'nurse' %}
+            <!-- Menú Enfermera -->
+            <ul class="nav flex-column">
+                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if request.endpoint == 'nurse.dashboard' }}" href="{{ url_for('nurse.dashboard') }}">
+                        <i class="bi bi-speedometer2"></i> Dashboard
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if request.endpoint == 'nurse.triage_list' }}" href="{{ url_for('nurse.triage_list') }}">
+                        <i class="bi bi-list-check"></i> Gestión de Triage
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if request.endpoint == 'nurse.patients' }}" href="{{ url_for('nurse.patients') }}">
+                        <i class="bi bi-people"></i> Mis Pacientes
+                    </a>
+                </li>
+            </ul>
+        {% endif %}
+    </div>
+</nav>

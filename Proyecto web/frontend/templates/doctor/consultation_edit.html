@@ -1,0 +1,326 @@
+{% extends "base.html" %}
+
+{% block title %}Editar Consulta Médica{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Sidebar -->
+        <nav class="col-md-3 col-lg-2 d-md-block bg-light sidebar collapse">
+            {% include 'shared/sidebar.html' %}
+        </nav>
+
+        <!-- Main content -->
+        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                <h1 class="h2">
+                    <i class="fas fa-edit me-2"></i>
+                    Editar Consulta Médica
+                </h1>
+                <div class="btn-toolbar mb-2 mb-md-0">
+                    <div class="btn-group me-2">
+                        <a href="{{ url_for('doctor.view_consultation', id=medical_record.id) }}" class="btn btn-sm btn-outline-secondary">
+                            <i class="fas fa-arrow-left me-1"></i>
+                            Cancelar
+                        </a>
+                        <a href="{{ url_for('doctor.view_medical_history', patient_id=patient.id) }}" class="btn btn-sm btn-outline-info">
+                            <i class="fas fa-file-medical me-1"></i>
+                            Ver Historia Clínica
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Alerta de tiempo restante -->
+            {% if edit_status.can_edit %}
+            <div class="alert alert-warning d-flex align-items-center" role="alert">
+                <i class="fas fa-clock me-2"></i>
+                <div>
+                    <strong>Tiempo restante para editar:</strong> {{ edit_status.time_remaining_minutes }} minutos
+                    <small class="d-block">Las consultas solo se pueden editar durante 1 hora después de su creación.</small>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Información del paciente -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-body">
+                            <h6 class="mb-0">
+                                <i class="fas fa-user me-2"></i>
+                                Paciente: <strong>{{ patient.full_name }}</strong>
+                                <span class="text-muted ms-2">DNI: {{ patient.dni }}</span>
+                                <span class="text-muted ms-2">Edad: {{ patient.age }} años</span>
+                            </h6>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Formulario de edición -->
+            <form method="POST">
+                {{ csrf_token() }}
+                
+                <!-- Anamnesis -->
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-comments me-2"></i>
+                                    Anamnesis
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="chief_complaint" class="form-label">
+                                                <i class="fas fa-question-circle me-1"></i>
+                                                Motivo de Consulta *
+                                            </label>
+                                            <textarea class="form-control" id="chief_complaint" name="chief_complaint" rows="3" 
+                                                      placeholder="¿Por qué vino el paciente?" required>{{ medical_record.chief_complaint }}</textarea>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="current_illness" class="form-label">
+                                                <i class="fas fa-stethoscope me-1"></i>
+                                                Enfermedad Actual
+                                            </label>
+                                            <textarea class="form-control" id="current_illness" name="current_illness" rows="3" 
+                                                      placeholder="Historia de la enfermedad actual...">{{ medical_record.current_illness }}</textarea>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Signos Vitales -->
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-heartbeat me-2"></i>
+                                    Signos Vitales
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-3">
+                                        <div class="mb-3">
+                                            <label for="blood_pressure" class="form-label">Presión Arterial</label>
+                                            <input type="text" class="form-control" id="blood_pressure" name="blood_pressure" 
+                                                   placeholder="120/80" value="{{ medical_record.blood_pressure or '' }}">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="mb-3">
+                                            <label for="heart_rate" class="form-label">Frecuencia Cardíaca</label>
+                                            <input type="number" class="form-control" id="heart_rate" name="heart_rate" 
+                                                   placeholder="70" value="{{ medical_record.heart_rate or '' }}">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <div class="mb-3">
+                                            <label for="temperature" class="form-label">Temperatura (°C)</label>
+                                            <input type="number" step="0.1" class="form-control" id="temperature" name="temperature" 
+                                                   placeholder="36.5" value="{{ medical_record.temperature or '' }}">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <div class="mb-3">
+                                            <label for="weight" class="form-label">Peso (kg)</label>
+                                            <input type="number" step="0.1" class="form-control" id="weight" name="weight" 
+                                                   placeholder="70.0" value="{{ medical_record.weight or '' }}">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <div class="mb-3">
+                                            <label for="height" class="form-label">Altura (cm)</label>
+                                            <input type="number" class="form-control" id="height" name="height" 
+                                                   placeholder="170" value="{{ medical_record.height or '' }}">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Examen Físico -->
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-search me-2"></i>
+                                    Examen Físico
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="general_examination" class="form-label">Examen General</label>
+                                            <textarea class="form-control" id="general_examination" name="general_examination" rows="4" 
+                                                      placeholder="Estado general del paciente...">{{ medical_record.general_examination }}</textarea>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="systemic_examination" class="form-label">Examen Sistémico</label>
+                                            <textarea class="form-control" id="systemic_examination" name="systemic_examination" rows="4" 
+                                                      placeholder="Examen por sistemas...">{{ medical_record.systemic_examination }}</textarea>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Diagnóstico y Tratamiento -->
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-diagnosis me-2"></i>
+                                    Diagnóstico y Tratamiento
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="diagnosis" class="form-label">
+                                                <i class="fas fa-stethoscope me-1"></i>
+                                                Diagnóstico *
+                                            </label>
+                                            <textarea class="form-control" id="diagnosis" name="diagnosis" rows="3" 
+                                                      placeholder="Diagnóstico médico..." required>{{ medical_record.diagnosis }}</textarea>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="treatment" class="form-label">
+                                                <i class="fas fa-prescription-bottle-alt me-1"></i>
+                                                Tratamiento
+                                            </label>
+                                            <textarea class="form-control" id="treatment" name="treatment" rows="3" 
+                                                      placeholder="Plan de tratamiento...">{{ medical_record.treatment }}</textarea>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="prescriptions" class="form-label">
+                                                <i class="fas fa-pills me-1"></i>
+                                                Prescripciones
+                                            </label>
+                                            <textarea class="form-control" id="prescriptions" name="prescriptions" rows="3" 
+                                                      placeholder="Medicamentos recetados...">{{ medical_record.prescriptions }}</textarea>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="recommendations" class="form-label">
+                                                <i class="fas fa-lightbulb me-1"></i>
+                                                Recomendaciones
+                                            </label>
+                                            <textarea class="form-control" id="recommendations" name="recommendations" rows="3" 
+                                                      placeholder="Recomendaciones para el paciente...">{{ medical_record.recommendations }}</textarea>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Próxima cita -->
+                                <div class="mb-3">
+                                    <label for="next_appointment_date" class="form-label">
+                                        <i class="fas fa-calendar-plus me-1"></i>
+                                        Próxima Cita
+                                    </label>
+                                    <input type="date" class="form-control" id="next_appointment_date" name="next_appointment_date" 
+                                           value="{{ medical_record.next_appointment_date.strftime('%Y-%m-%d') if medical_record.next_appointment_date else '' }}">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Observaciones Adicionales -->
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-sticky-note me-2"></i>
+                                    Observaciones Adicionales
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <textarea class="form-control" id="additional_observations" name="additional_observations" rows="4" 
+                                              placeholder="Observaciones adicionales...">{{ medical_record.additional_observations }}</textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Botones de acción -->
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <a href="{{ url_for('doctor.view_consultation', id=medical_record.id) }}" class="btn btn-secondary">
+                                    <i class="fas fa-times me-1"></i>
+                                    Cancelar
+                                </a>
+                            </div>
+                            <div>
+                                <button type="submit" name="action" value="save" class="btn btn-warning">
+                                    <i class="fas fa-save me-1"></i>
+                                    Guardar Cambios
+                                </button>
+                                <button type="submit" name="action" value="save_and_print" class="btn btn-success ms-2">
+                                    <i class="fas fa-print me-1"></i>
+                                    Guardar e Imprimir
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </main>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+$(document).ready(function() {
+    // Mostrar cuenta regresiva de tiempo restante
+    {% if edit_status.can_edit %}
+    var timeRemaining = {{ edit_status.time_remaining_minutes }} * 60; // convertir a segundos
+    
+    function updateCountdown() {
+        var minutes = Math.floor(timeRemaining / 60);
+        var seconds = timeRemaining % 60;
+        
+        if (timeRemaining <= 0) {
+            location.reload(); // Recargar página cuando se acabe el tiempo
+            return;
+        }
+        
+        $('.alert-warning div strong').text('Tiempo restante para editar: ' + minutes + ':' + (seconds < 10 ? '0' : '') + seconds);
+        timeRemaining--;
+    }
+    
+    updateCountdown();
+    setInterval(updateCountdown, 1000);
+    {% endif %}
+});
+</script>
+{% endblock %}

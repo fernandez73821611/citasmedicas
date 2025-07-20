@@ -1,0 +1,340 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>
+        <i class="fas fa-calendar-alt"></i> Detalles de la Cita
+    </h2>
+    <div>
+        {% if appointment.status == 'scheduled' %}
+        <a href="{{ url_for('receptionist.edit_appointment', appointment_id=appointment.id) }}" 
+           class="btn btn-warning">
+            <i class="fas fa-edit"></i> Editar
+        </a>
+        {% endif %}
+        <a href="{{ url_for('receptionist.appointments') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Volver a Citas
+        </a>
+    </div>
+</div>
+
+<div class="row">
+                    <!-- Información Principal -->
+                    <div class="col-lg-8">
+                        <div class="card">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-calendar-check"></i> Información de la Cita
+                                </h5>
+                                <div>
+                                    {% if appointment.status == 'scheduled' %}
+                                        <span class="badge bg-info fs-6">Programada</span>
+                                    {% elif appointment.status == 'confirmed' %}
+                                        <span class="badge bg-success fs-6">Confirmada</span>
+                                    {% elif appointment.status == 'completed' %}
+                                        <span class="badge bg-primary fs-6">Completada</span>
+                                    {% elif appointment.status == 'cancelled' %}
+                                        <span class="badge bg-danger fs-6">Cancelada</span>
+                                    {% elif appointment.status == 'no_show' %}
+                                        <span class="badge bg-warning fs-6">No asistió</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <h6><i class="fas fa-calendar"></i> Fecha y Hora</h6>
+                                        <p class="mb-3">
+                                            <strong>{{ appointment.date_time.strftime('%A, %d de %B de %Y') }}</strong><br>
+                                            <span class="text-primary">{{ appointment.date_time.strftime('%H:%M') }}</span>
+                                        </p>
+
+                                        <h6><i class="fas fa-user"></i> Paciente</h6>
+                                        <p class="mb-3">
+                                            <strong>{{ appointment.patient.full_name }}</strong><br>
+                                            <small class="text-muted">DNI: {{ appointment.patient.dni }}</small><br>
+                                            {% if appointment.patient.phone %}
+                                            <small class="text-muted">Tel: {{ appointment.patient.phone }}</small><br>
+                                            {% endif %}
+                                            {% if appointment.patient.email %}
+                                            <small class="text-muted">Email: {{ appointment.patient.email }}</small>
+                                            {% endif %}
+                                        </p>
+
+                                        <h6><i class="fas fa-user-md"></i> Doctor</h6>
+                                        <p class="mb-3">
+                                            <strong>Dr. {{ appointment.doctor.full_name }}</strong><br>
+                                            {% if appointment.doctor.email %}
+                                            <small class="text-muted">{{ appointment.doctor.email }}</small>
+                                            {% endif %}
+                                        </p>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <h6><i class="fas fa-stethoscope"></i> Especialidad</h6>
+                                        <p class="mb-3">
+                                            <span class="badge bg-secondary">{{ appointment.specialty.name }}</span>
+                                        </p>
+
+                                        {% if appointment.reason %}
+                                        <h6><i class="fas fa-comment-medical"></i> Motivo de la Consulta</h6>
+                                        <div class="border rounded p-3 mb-3">
+                                            {{ appointment.reason }}
+                                        </div>
+                                        {% endif %}
+
+                                        {% if appointment.notes %}
+                                        <h6><i class="fas fa-sticky-note"></i> Notas</h6>
+                                        <div class="border rounded p-3 mb-3">
+                                            {{ appointment.notes }}
+                                        </div>
+                                        {% endif %}
+
+                                        <h6><i class="fas fa-info-circle"></i> Información del Sistema</h6>
+                                        <p class="small text-muted mb-1">
+                                            <strong>Cita creada:</strong> {{ appointment.created_at.strftime('%d/%m/%Y %H:%M') if appointment.created_at }}
+                                        </p>
+                                        {% if appointment.updated_at %}
+                                        <p class="small text-muted mb-0">
+                                            <strong>Última actualización:</strong> {{ appointment.updated_at.strftime('%d/%m/%Y %H:%M') }}
+                                        </p>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Acciones -->
+                        {% if appointment.status in ['scheduled', 'confirmed'] %}
+                        <div class="card mt-4">
+                            <div class="card-header">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-cogs"></i> Acciones Disponibles
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="d-flex gap-2">
+                                    {% if appointment.status == 'scheduled' %}
+                                    <a href="{{ url_for('receptionist.edit_appointment', appointment_id=appointment.id) }}" 
+                                       class="btn btn-outline-warning">
+                                        <i class="fas fa-edit"></i> Editar Cita
+                                    </a>
+                                    {% endif %}
+                                    
+                                    {% if appointment.can_be_cancelled %}
+                                    <button type="button" class="btn btn-outline-danger" 
+                                            onclick="cancelAppointment({{ appointment.id }}, '{{ appointment.patient.full_name }}')">
+                                        <i class="fas fa-times"></i> Cancelar Cita
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Panel Lateral -->
+                    <div class="col-lg-4">
+                        <!-- Información del Paciente -->
+                        <div class="card">
+                            <div class="card-header">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-user"></i> Detalles del Paciente
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="text-center mb-3">
+                                    <div class="bg-primary text-white rounded-circle d-inline-flex align-items-center justify-content-center" 
+                                         style="width: 60px; height: 60px;">
+                                        <i class="fas fa-user fa-2x"></i>
+                                    </div>
+                                    <h6 class="mt-2 mb-0">{{ appointment.patient.full_name }}</h6>
+                                    <small class="text-muted">DNI: {{ appointment.patient.dni }}</small>
+                                </div>
+                                
+                                <div class="row text-center">
+                                    <div class="col-6">
+                                        <div class="border-end">
+                                            <h6 class="mb-0">{{ appointment.patient.age }}</h6>
+                                            <small class="text-muted">Años</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <h6 class="mb-0">{{ appointment.patient.gender or 'N/A' }}</h6>
+                                        <small class="text-muted">Género</small>
+                                    </div>
+                                </div>
+
+                                <hr>
+
+                                <div class="mb-2">
+                                    <small class="text-muted">Teléfono:</small><br>
+                                    <span>{{ appointment.patient.phone or 'No especificado' }}</span>
+                                </div>
+                                
+                                {% if appointment.patient.email %}
+                                <div class="mb-2">
+                                    <small class="text-muted">Email:</small><br>
+                                    <span>{{ appointment.patient.email }}</span>
+                                </div>
+                                {% endif %}
+
+                                {% if appointment.patient.blood_type %}
+                                <div class="mb-2">
+                                    <small class="text-muted">Tipo de Sangre:</small><br>
+                                    <span class="badge bg-info">{{ appointment.patient.blood_type }}</span>
+                                </div>
+                                {% endif %}
+
+                                <div class="mt-3">
+                                    <a href="{{ url_for('receptionist.view_patient', patient_id=appointment.patient.id) }}" 
+                                       class="btn btn-outline-primary btn-sm w-100">
+                                        <i class="fas fa-eye"></i> Ver Perfil Completo
+                                    </a>
+                                </div>
+                            </div>
+                        </div>                        <!-- Citas Recientes del Paciente -->
+                        {% if recent_appointments %}
+                        <div class="card mt-3">
+                            <div class="card-header">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-history"></i> Citas Recientes
+                                </h6>
+                            </div>                            <div class="card-body">
+                                {% for recent_appointment in recent_appointments %}
+                                    <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
+                                        <div>
+                                            <small class="fw-bold">{{ recent_appointment.date_time.strftime('%d/%m/%Y') }}</small><br>
+                                            <small class="text-muted">Dr. {{ recent_appointment.doctor.full_name }}</small>
+                                        </div>
+                                        <div>
+                                            {% if recent_appointment.status == 'completed' %}
+                                                <span class="badge bg-primary">Completada</span>
+                                            {% elif recent_appointment.status == 'cancelled' %}
+                                                <span class="badge bg-danger">Cancelada</span>
+                                            {% elif recent_appointment.status == 'scheduled' %}
+                                                <span class="badge bg-info">Programada</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- Información del Doctor -->
+                        <div class="card mt-3">
+                            <div class="card-header">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-user-md"></i> Doctor Asignado
+                                </h6>
+                            </div>
+                            <div class="card-body text-center">
+                                <div class="bg-success text-white rounded-circle d-inline-flex align-items-center justify-content-center mb-2" 
+                                     style="width: 50px; height: 50px;">
+                                    <i class="fas fa-user-md fa-lg"></i>
+                                </div>
+                                <h6 class="mb-1">Dr. {{ appointment.doctor.full_name }}</h6>
+                                <p class="small text-muted mb-0">{{ appointment.specialty.name }}</p>
+                                {% if appointment.doctor.email %}
+                                <p class="small text-muted">{{ appointment.doctor.email }}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de confirmación para cancelar cita -->
+<div class="modal fade" id="cancelModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-exclamation-triangle"></i> Cancelar Cita
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>¿Está seguro que desea cancelar la cita de <strong id="patientName"></strong>?</p>
+                <div class="alert alert-warning">
+                    <i class="fas fa-info-circle"></i>
+                    Esta acción no se puede deshacer. La cita quedará marcada como cancelada.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times"></i> No, mantener cita
+                </button>
+                <button type="button" class="btn btn-danger" id="confirmCancel">
+                    <i class="fas fa-check"></i> Sí, cancelar cita
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let appointmentToCancel = null;
+
+function cancelAppointment(appointmentId, patientName) {
+    appointmentToCancel = appointmentId;
+    document.getElementById('patientName').textContent = patientName;
+    new bootstrap.Modal(document.getElementById('cancelModal')).show();
+}
+
+document.getElementById('confirmCancel').addEventListener('click', function() {
+    if (appointmentToCancel) {
+        fetch(`/receptionist/appointments/${appointmentToCancel}/cancel`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showAlert('success', data.message);
+                setTimeout(() => {
+                    window.location.href = '{{ url_for("receptionist.appointments") }}';
+                }, 1500);
+            } else {
+                showAlert('error', data.message);
+            }
+            bootstrap.Modal.getInstance(document.getElementById('cancelModal')).hide();
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showAlert('error', 'Error al cancelar la cita. Intente nuevamente.');
+            bootstrap.Modal.getInstance(document.getElementById('cancelModal')).hide();
+        });
+    }
+});
+
+function showAlert(type, message) {
+    const alertDiv = document.createElement('div');
+    const alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
+    alertDiv.className = `alert ${alertClass} alert-dismissible fade show position-fixed`;
+    alertDiv.style.top = '20px';
+    alertDiv.style.right = '20px';
+    alertDiv.style.zIndex = '9999';
+    alertDiv.innerHTML = `
+        <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'}"></i>
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.body.appendChild(alertDiv);
+    
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.parentNode.removeChild(alertDiv);
+        }
+    }, 5000);
+}
+</script>
+{% endblock %}

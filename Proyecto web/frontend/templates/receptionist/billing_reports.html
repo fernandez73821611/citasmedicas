@@ -1,0 +1,556 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block extra_css %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+    .stats-card {
+        transition: transform 0.2s;
+        border: none;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .stats-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    }
+    .stats-icon {
+        font-size: 2rem;
+        opacity: 0.7;
+    }
+    .chart-container {
+        position: relative;
+        height: 400px;
+        margin: 20px 0;
+    }
+    .filter-section {
+        background: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+    .metric-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    .metric-value {
+        font-size: 2.5rem;
+        font-weight: bold;
+        margin: 10px 0;
+    }
+    .trend-indicator {
+        font-size: 0.9rem;
+        opacity: 0.9;
+    }
+    .trend-up { color: #28a745; }
+    .trend-down { color: #dc3545; }
+    .trend-neutral { color: #6c757d; }
+    .export-section {
+        background: #e9ecef;
+        padding: 15px;
+        border-radius: 8px;
+        margin-top: 20px;
+    }
+    .table-responsive {
+        max-height: 400px;
+        overflow-y: auto;
+    }
+    .overdue-row {
+        background-color: #fff5f5;
+        border-left: 4px solid #dc3545;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">
+        <i class="bi bi-graph-up"></i> {{ title }}
+    </h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <a href="{{ url_for('receptionist.billing') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Volver a Facturación
+            </a>
+            <button class="btn btn-outline-primary" id="exportBtn">
+                <i class="bi bi-download"></i> Exportar
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Filtros -->
+<div class="filter-section">
+    <form method="GET" id="filterForm">
+        <div class="row">
+            <div class="col-md-3">
+                <label for="date_from" class="form-label">
+                    <i class="bi bi-calendar"></i> Desde
+                </label>
+                <input type="date" class="form-control" id="date_from" name="date_from" 
+                       value="{{ request.args.get('date_from', '') }}">
+            </div>
+            <div class="col-md-3">
+                <label for="date_to" class="form-label">
+                    <i class="bi bi-calendar-check"></i> Hasta
+                </label>
+                <input type="date" class="form-control" id="date_to" name="date_to" 
+                       value="{{ request.args.get('date_to', '') }}">
+            </div>
+            <div class="col-md-3">
+                <label for="status" class="form-label">
+                    <i class="bi bi-funnel"></i> Estado
+                </label>
+                <select class="form-control" id="status" name="status">
+                    <option value="">Todos los estados</option>
+                    <option value="pending" {{ 'selected' if request.args.get('status') == 'pending' }}>Pendiente</option>
+                    <option value="paid" {{ 'selected' if request.args.get('status') == 'paid' }}>Pagada</option>
+                    <option value="overdue" {{ 'selected' if request.args.get('status') == 'overdue' }}>Vencida</option>
+                    <option value="cancelled" {{ 'selected' if request.args.get('status') == 'cancelled' }}>Cancelada</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="patient" class="form-label">
+                    <i class="bi bi-person"></i> Paciente
+                </label>
+                <select class="form-control" id="patient" name="patient_id">
+                    <option value="">Todos los pacientes</option>
+                    {% for patient in patients %}
+                    <option value="{{ patient.id }}" {{ 'selected' if request.args.get('patient_id') == patient.id|string }}>
+                        {{ patient.name }} {{ patient.lastname }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        <div class="row mt-3">
+            <div class="col-12">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-search"></i> Filtrar
+                </button>
+                <a href="{{ url_for('receptionist.billing_reports') }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-clockwise"></i> Limpiar Filtros
+                </a>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- Métricas principales -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="metric-card">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-0">Ingresos Totales</h6>
+                    <div class="metric-value">S/ {{ "%.2f"|format(stats.total_revenue) }}</div>
+                    <div class="trend-indicator">
+                        <i class="bi bi-calendar-month"></i> Período actual
+                    </div>
+                </div>
+                <div class="stats-icon">
+                    <i class="bi bi-currency-dollar"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="metric-card">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-0">Facturas Totales</h6>
+                    <div class="metric-value">{{ stats.total_invoices }}</div>
+                    <div class="trend-indicator">
+                        <i class="bi bi-receipt"></i> Todas las facturas
+                    </div>
+                </div>
+                <div class="stats-icon">
+                    <i class="bi bi-receipt-cutoff"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="metric-card">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-0">Facturas Pendientes</h6>
+                    <div class="metric-value">{{ stats.pending_invoices }}</div>
+                    <div class="trend-indicator">
+                        <i class="bi bi-clock"></i> Por cobrar
+                    </div>
+                </div>
+                <div class="stats-icon">
+                    <i class="bi bi-hourglass-split"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="metric-card">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-0">Facturas Vencidas</h6>
+                    <div class="metric-value">{{ stats.overdue_invoices }}</div>
+                    <div class="trend-indicator text-warning">
+                        <i class="bi bi-exclamation-triangle"></i> Requieren atención
+                    </div>
+                </div>
+                <div class="stats-icon">
+                    <i class="bi bi-exclamation-triangle"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Gráficos -->
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-pie-chart"></i> Distribución por Estado
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="statusChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-bar-chart"></i> Ingresos por Mes
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="revenueChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-graph-up"></i> Tendencia de Facturación
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="trendChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-people"></i> Top 10 Pacientes por Facturación
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="patientsChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tabla de facturas recientes -->
+<div class="card mt-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">
+            <i class="bi bi-table"></i> Facturas Recientes
+        </h5>
+        <span class="badge bg-primary">{{ recent_invoices|length }} facturas</span>
+    </div>
+    <div class="card-body">
+        {% if recent_invoices %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th>Número</th>
+                        <th>Paciente</th>
+                        <th>Fecha</th>
+                        <th>Vencimiento</th>
+                        <th>Total</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for invoice in recent_invoices %}
+                    <tr class="{{ 'overdue-row' if invoice.is_overdue() and invoice.status == 'pending' }}">
+                        <td>
+                            <strong>{{ invoice.invoice_number }}</strong>
+                        </td>
+                        <td>
+                            {{ invoice.patient.name }} {{ invoice.patient.lastname }}
+                            <br><small class="text-muted">{{ invoice.patient.dni }}</small>
+                        </td>
+                        <td>{{ invoice.created_at.strftime('%d/%m/%Y') }}</td>
+                        <td>
+                            {{ invoice.due_date.strftime('%d/%m/%Y') }}
+                            {% if invoice.is_overdue() and invoice.status == 'pending' %}
+                                <br><small class="text-danger">
+                                    <i class="bi bi-exclamation-triangle"></i> {{ invoice.days_overdue() }} días
+                                </small>
+                            {% endif %}
+                        </td>
+                        <td class="amount-cell">S/ {{ "%.2f"|format(invoice.total_amount) }}</td>
+                        <td>
+                            {% if invoice.status == 'pending' %}
+                                <span class="badge bg-warning text-dark">Pendiente</span>
+                            {% elif invoice.status == 'paid' %}
+                                <span class="badge bg-success">Pagada</span>
+                            {% elif invoice.status == 'overdue' %}
+                                <span class="badge bg-danger">Vencida</span>
+                            {% elif invoice.status == 'cancelled' %}
+                                <span class="badge bg-secondary">Cancelada</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{{ url_for('receptionist.invoice_detail', invoice_id=invoice.id) }}" 
+                                   class="btn btn-outline-primary btn-sm" title="Ver detalle">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                {% if invoice.status in ['pending', 'overdue'] %}
+                                <button type="button" class="btn btn-outline-success btn-sm" 
+                                        onclick="markAsPaid('{{ invoice.id }}')" title="Marcar como pagada">
+                                    <i class="bi bi-check"></i>
+                                </button>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-4">
+            <i class="bi bi-inbox display-4 text-muted"></i>
+            <p class="text-muted mt-2">No hay facturas para mostrar con los filtros seleccionados.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Sección de exportación -->
+<div class="export-section">
+    <h6><i class="bi bi-download"></i> Exportar Datos</h6>
+    <p class="text-muted mb-3">Descargue los datos de facturación en diferentes formatos:</p>
+    <div class="btn-group">
+        <button type="button" class="btn btn-outline-success" onclick="exportData('csv')">
+            <i class="bi bi-file-earmark-csv"></i> Exportar CSV
+        </button>
+        <button type="button" class="btn btn-outline-primary" onclick="exportData('excel')">
+            <i class="bi bi-file-earmark-excel"></i> Exportar Excel
+        </button>
+        <button type="button" class="btn btn-outline-danger" onclick="exportData('pdf')">
+            <i class="bi bi-file-earmark-pdf"></i> Exportar PDF
+        </button>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Datos para los gráficos (pasados desde el backend)
+const chartData = {{ chart_data|tojson }};
+
+// Configuración de colores
+const colors = {
+    primary: '#007bff',
+    success: '#28a745',
+    warning: '#ffc107',
+    danger: '#dc3545',
+    info: '#17a2b8',
+    secondary: '#6c757d'
+};
+
+// Gráfico de distribución por estado
+const statusCtx = document.getElementById('statusChart').getContext('2d');
+new Chart(statusCtx, {
+    type: 'doughnut',
+    data: {
+        labels: ['Pendientes', 'Pagadas', 'Vencidas', 'Canceladas'],
+        datasets: [{
+            data: [
+                chartData.status_distribution.pending,
+                chartData.status_distribution.paid,
+                chartData.status_distribution.overdue,
+                chartData.status_distribution.cancelled
+            ],
+            backgroundColor: [colors.warning, colors.success, colors.danger, colors.secondary],
+            borderWidth: 2,
+            borderColor: '#fff'
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom'
+            }
+        }
+    }
+});
+
+// Gráfico de ingresos por mes
+const revenueCtx = document.getElementById('revenueChart').getContext('2d');
+new Chart(revenueCtx, {
+    type: 'bar',
+    data: {
+        labels: chartData.monthly_revenue.labels,
+        datasets: [{
+            label: 'Ingresos (S/)',
+            data: chartData.monthly_revenue.data,
+            backgroundColor: colors.primary,
+            borderColor: colors.primary,
+            borderWidth: 1
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    callback: function(value) {
+                        return 'S/ ' + value.toFixed(2);
+                    }
+                }
+            }
+        }
+    }
+});
+
+// Gráfico de tendencia
+const trendCtx = document.getElementById('trendChart').getContext('2d');
+new Chart(trendCtx, {
+    type: 'line',
+    data: {
+        labels: chartData.trend.labels,
+        datasets: [{
+            label: 'Facturas creadas',
+            data: chartData.trend.invoices,
+            borderColor: colors.info,
+            backgroundColor: colors.info + '20',
+            tension: 0.4
+        }, {
+            label: 'Facturas pagadas',
+            data: chartData.trend.paid,
+            borderColor: colors.success,
+            backgroundColor: colors.success + '20',
+            tension: 0.4
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+            y: {
+                beginAtZero: true
+            }
+        }
+    }
+});
+
+// Gráfico de top pacientes
+const patientsCtx = document.getElementById('patientsChart').getContext('2d');
+new Chart(patientsCtx, {
+    type: 'horizontalBar',
+    data: {
+        labels: chartData.top_patients.labels,
+        datasets: [{
+            label: 'Total facturado (S/)',
+            data: chartData.top_patients.data,
+            backgroundColor: colors.success,
+            borderColor: colors.success,
+            borderWidth: 1
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+            x: {
+                beginAtZero: true,
+                ticks: {
+                    callback: function(value) {
+                        return 'S/ ' + value.toFixed(2);
+                    }
+                }
+            }
+        }
+    }
+});
+
+// Función para marcar como pagada
+function markAsPaid(invoiceId) {
+    if (confirm('¿Está seguro de que desea marcar esta factura como pagada?')) {
+        $.ajax({
+            url: `/receptionist/billing/${invoiceId}/pay`,
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': $('meta[name=csrf-token]').attr('content')
+            },
+            success: function(response) {
+                if (response.success) {
+                    location.reload();
+                } else {
+                    alert('Error: ' + response.message);
+                }
+            },
+            error: function() {
+                alert('Error al procesar la solicitud. Intente nuevamente.');
+            }
+        });
+    }
+}
+
+// Función de exportación
+function exportData(format) {
+    const currentUrl = new URL(window.location);
+    currentUrl.searchParams.set('export', format);
+    window.open(currentUrl.toString(), '_blank');
+}
+
+// Auto-submit del formulario cuando cambian los filtros
+$('#filterForm select, #filterForm input').on('change', function() {
+    $('#filterForm').submit();
+});
+
+// Configurar fechas por defecto si están vacías
+$(document).ready(function() {
+    if (!$('#date_from').val()) {
+        const firstDay = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+        $('#date_from').val(firstDay.toISOString().split('T')[0]);
+    }
+    
+    if (!$('#date_to').val()) {
+        const today = new Date();
+        $('#date_to').val(today.toISOString().split('T')[0]);
+    }
+});
+</script>
+{% endblock %}

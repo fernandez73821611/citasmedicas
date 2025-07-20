@@ -1,0 +1,218 @@
+{% extends "base.html" %}
+
+{% block title %}Gestión de Triage - Sistema de Gestión Médica{% endblock %}
+
+{% block content %}
+<!-- Mensajes Flash -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ 'danger' if category == 'error' else 'success' }} alert-dismissible fade show" role="alert">
+                <i class="bi bi-{{ 'exclamation-triangle' if category == 'error' else 'check-circle' }}"></i>
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">
+        <i class="bi bi-clipboard-data"></i> Gestión de Triage
+    </h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <a href="{{ url_for('nurse.new_triage') }}" class="btn btn-primary">
+                <i class="bi bi-plus-circle"></i> Nuevo Triage
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Filtros -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-search"></i></span>
+            <input type="text" class="form-control" placeholder="Buscar paciente..." 
+                   id="searchPatient" value="{{ patient_search }}">
+        </div>
+    </div>
+    <div class="col-md-3">
+        <select class="form-select" id="filterStatus" onchange="applyFilters()">
+            <option value="all" {{ 'selected' if status_filter == 'all' else '' }}>Todos los estados</option>
+            <option value="pending" {{ 'selected' if status_filter == 'pending' else '' }}>Pendientes</option>
+            <option value="completed" {{ 'selected' if status_filter == 'completed' else '' }}>Completados</option>
+            <option value="in_consultation" {{ 'selected' if status_filter == 'in_consultation' else '' }}>En Consulta</option>
+        </select>
+    </div>
+    <div class="col-md-3">
+        <select class="form-select" id="filterPriority">
+            <option value="">Todas las prioridades</option>
+            <option value="alta">🔴 Prioridad Alta</option>
+            <option value="media">🟡 Prioridad Media</option>
+            <option value="baja">🟢 Prioridad Baja</option>
+        </select>
+    </div>
+    <div class="col-md-2">
+        <button class="btn btn-outline-secondary w-100" onclick="clearFilters()">
+            <i class="bi bi-arrow-clockwise"></i> Limpiar
+        </button>
+    </div>
+</div>
+
+<!-- Lista de Triages -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">Lista de Evaluaciones de Triage</h5>
+    </div>
+    <div class="card-body">
+        {% if triages %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Paciente</th>
+                            <th>Prioridad</th>
+                            <th>Motivo Consulta</th>
+                            <th>Signos Vitales</th>
+                            <th>Estado</th>
+                            <th>Enfermera</th>
+                            <th>Fecha</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for triage in triages %}
+                        <tr>
+                            <td>
+                                <strong>{{ triage.patient.full_name }}</strong><br>
+                                <small class="text-muted">DNI: {{ triage.patient.dni }}</small><br>
+                                <small class="text-muted">{{ triage.patient.age }} años</small>
+                            </td>
+                            <td>
+                                <span class="badge bg-{{ triage.priority_color }}">
+                                    {% if triage.priority_level == 'alta' %}🔴
+                                    {% elif triage.priority_level == 'media' %}🟡
+                                    {% else %}🟢{% endif %}
+                                    {{ triage.priority_label }}
+                                </span>
+                            </td>
+                            <td>
+                                <div class="text-truncate" style="max-width: 200px;" 
+                                     title="{{ triage.chief_complaint }}">
+                                    {{ triage.chief_complaint[:50] + '...' if triage.chief_complaint and triage.chief_complaint|length > 50 else triage.chief_complaint or 'No especificado' }}
+                                </div>
+                            </td>
+                            <td>
+                                <small>
+                                    {% if triage.blood_pressure %}
+                                        <strong>PA:</strong> {{ triage.blood_pressure }}<br>
+                                    {% endif %}
+                                    {% if triage.heart_rate %}
+                                        <strong>FC:</strong> {{ triage.heart_rate }} bpm<br>
+                                    {% endif %}
+                                    {% if triage.temperature %}
+                                        <strong>T°:</strong> {{ triage.temperature }}°C<br>
+                                    {% endif %}
+                                    {% if triage.oxygen_saturation %}
+                                        <strong>SpO₂:</strong> {{ triage.oxygen_saturation }}%
+                                    {% endif %}
+                                </small>
+                            </td>
+                            <td>
+                                {% if triage.status == 'pending' %}
+                                    <span class="badge bg-warning">
+                                        <i class="bi bi-clock"></i> Pendiente
+                                    </span>
+                                {% elif triage.status == 'completed' %}
+                                    <span class="badge bg-success">
+                                        <i class="bi bi-check-circle"></i> Completado
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-info">
+                                        <i class="bi bi-person-check"></i> En Consulta
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <small>{{ triage.nurse.full_name }}</small>
+                            </td>
+                            <td>
+                                <small>
+                                    {{ triage.created_at.strftime('%d/%m/%Y') }}<br>
+                                    {{ triage.created_at.strftime('%H:%M') }}
+                                </small>
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <a href="{{ url_for('nurse.view_triage', triage_id=triage.id) }}" 
+                                       class="btn btn-outline-primary" title="Ver detalles">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                    {% if triage.status == 'pending' or (triage.nurse_id == current_user.id and triage.status == 'completed') %}
+                                    <a href="{{ url_for('nurse.edit_triage', triage_id=triage.id) }}" 
+                                       class="btn btn-outline-secondary" title="Editar">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                    {% endif %}
+                                    {% if triage.status == 'pending' and triage.nurse_id == current_user.id %}
+                                    <form method="POST" action="{{ url_for('nurse.complete_triage', triage_id=triage.id) }}" 
+                                          style="display: inline;">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                        <button type="submit" class="btn btn-outline-success" 
+                                                title="Completar triage"
+                                                onclick="return confirm('¿Está seguro de marcar este triage como completado?')">
+                                            <i class="bi bi-check-circle"></i>
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="text-center py-5">
+                <i class="bi bi-clipboard-data text-muted" style="font-size: 3rem;"></i>
+                <h5 class="mt-3">No hay triages registrados</h5>
+                <p class="text-muted">Comience creando un nuevo triage para un paciente.</p>
+                <a href="{{ url_for('nurse.new_triage') }}" class="btn btn-primary">
+                    <i class="bi bi-plus-circle"></i> Crear Primer Triage
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+function applyFilters() {
+    const status = document.getElementById('filterStatus').value;
+    const priority = document.getElementById('filterPriority').value;
+    const search = document.getElementById('searchPatient').value;
+    
+    const params = new URLSearchParams();
+    if (status && status !== 'all') params.append('status', status);
+    if (priority) params.append('priority', priority);
+    if (search) params.append('search', search);
+    
+    window.location.href = `{{ url_for('nurse.triage_list') }}?${params.toString()}`;
+}
+
+function clearFilters() {
+    window.location.href = `{{ url_for('nurse.triage_list') }}`;
+}
+
+// Búsqueda en tiempo real
+document.getElementById('searchPatient').addEventListener('keyup', function(e) {
+    if (e.key === 'Enter') {
+        applyFilters();
+    }
+});
+
+// Filtro de prioridad
+document.getElementById('filterPriority').addEventListener('change', applyFilters);
+</script>
+{% endblock %}

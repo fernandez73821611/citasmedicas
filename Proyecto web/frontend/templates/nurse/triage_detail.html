@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+
+{% block title %}Detalle Triage - {{ triage.patient.full_name }} - Sistema de Gestión Médica{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">
+        <i class="bi bi-clipboard-heart"></i>
+        Detalle de Triage - {{ triage.patient.full_name }}
+    </h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <a href="{{ url_for('nurse.triage_list') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Volver a Lista
+            </a>
+            <a href="{{ url_for('nurse.edit_triage', triage_id=triage.id) }}" class="btn btn-primary">
+                <i class="bi bi-pencil"></i> Editar
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Información del Paciente -->
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-person"></i> Información del Paciente
+                </h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Nombre:</strong> {{ triage.patient.full_name }}</p>
+                <p><strong>DNI:</strong> {{ triage.patient.dni }}</p>
+                <p><strong>Edad:</strong> {{ triage.patient.age }} años</p>
+                <p><strong>Teléfono:</strong> {{ triage.patient.phone }}</p>
+                {% if triage.appointment %}
+                <p><strong>Cita:</strong> {{ triage.appointment.date_time.strftime('%d/%m/%Y %H:%M') }}</p>
+                <p><strong>Estado de Pago:</strong> 
+                    <span class="badge bg-{{ 'success' if triage.appointment.is_paid else 'warning' }}">
+                        {{ triage.appointment.payment_status }}
+                    </span>
+                </p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Información del Triage -->
+    <div class="col-md-8">
+        <!-- Estado y Prioridad -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-flag"></i> Estado y Prioridad
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Prioridad:</strong> 
+                            <span class="badge bg-{{ triage.priority_color }}">
+                                {{ triage.priority_label }}
+                            </span>
+                        </p>
+                        <p><strong>Estado:</strong> 
+                            <span class="badge bg-{% if triage.status == 'completed' %}success{% elif triage.status == 'pending' %}warning{% else %}info{% endif %}">
+                                {% if triage.status == 'pending' %}Pendiente
+                                {% elif triage.status == 'completed' %}Completado
+                                {% else %}En Consulta{% endif %}
+                            </span>
+                        </p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Enfermera:</strong> {{ triage.nurse.full_name }}</p>
+                        <p><strong>Fecha Creación:</strong> {{ triage.created_at.strftime('%d/%m/%Y %H:%M') }}</p>
+                        {% if triage.completed_at %}
+                        <p><strong>Fecha Completado:</strong> {{ triage.completed_at.strftime('%d/%m/%Y %H:%M') }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Signos Vitales -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-activity"></i> Signos Vitales
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        {% if triage.blood_pressure %}
+                        <p><strong>Presión Arterial:</strong> {{ triage.blood_pressure }} mmHg</p>
+                        {% endif %}
+                        {% if triage.heart_rate %}
+                        <p><strong>Frecuencia Cardíaca:</strong> {{ triage.heart_rate }} bpm</p>
+                        {% endif %}
+                        {% if triage.temperature %}
+                        <p><strong>Temperatura:</strong> {{ triage.temperature }}°C</p>
+                        {% endif %}
+                        {% if triage.respiratory_rate %}
+                        <p><strong>Frecuencia Respiratoria:</strong> {{ triage.respiratory_rate }} rpm</p>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6">
+                        {% if triage.oxygen_saturation %}
+                        <p><strong>Saturación O₂:</strong> {{ triage.oxygen_saturation }}%</p>
+                        {% endif %}
+                        {% if triage.weight %}
+                        <p><strong>Peso:</strong> {{ triage.weight }} kg</p>
+                        {% endif %}
+                        {% if triage.height %}
+                        <p><strong>Altura:</strong> {{ triage.height }} cm</p>
+                        {% endif %}
+                        {% if triage.bmi %}
+                        <p><strong>IMC:</strong> {{ triage.bmi }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Información Clínica -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-clipboard-data"></i> Información Clínica
+                </h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Motivo Principal de Consulta:</strong></p>
+                <p class="border p-2 bg-light">{{ triage.chief_complaint or 'No especificado' }}</p>
+                
+                {% if triage.pain_scale %}
+                <p><strong>Escala de Dolor:</strong> {{ triage.pain_scale }}/10</p>
+                {% endif %}
+                
+                <div class="row">
+                    <div class="col-md-4">
+                        {% if triage.allergies %}
+                        <p><strong>Alergias:</strong></p>
+                        <p class="border p-2 bg-light">{{ triage.allergies }}</p>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-4">
+                        {% if triage.current_medications %}
+                        <p><strong>Medicamentos Actuales:</strong></p>
+                        <p class="border p-2 bg-light">{{ triage.current_medications }}</p>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-4">
+                        {% if triage.blood_type %}
+                        <p><strong>Tipo de Sangre:</strong></p>
+                        <p class="text-center">
+                            <span class="badge bg-primary fs-6">
+                                <i class="bi bi-droplet"></i> {{ triage.blood_type }}
+                            </span>
+                        </p>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                {% if triage.nurse_observations %}
+                <p><strong>Observaciones de Enfermería:</strong></p>
+                <p class="border p-2 bg-light">{{ triage.nurse_observations }}</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Signos Vitales Anormales -->
+        {% set abnormal_signs = triage.is_vital_signs_abnormal() %}
+        {% if abnormal_signs %}
+        <div class="card mb-4">
+            <div class="card-header bg-warning">
+                <h5 class="mb-0">
+                    <i class="bi bi-exclamation-triangle"></i> Signos Vitales Anormales
+                </h5>
+            </div>
+            <div class="card-body">
+                <p class="text-warning">
+                    <strong>⚠️ Los siguientes signos vitales están fuera del rango normal:</strong>
+                </p>
+                <ul>
+                    {% for sign in abnormal_signs %}
+                    <li>{{ sign }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

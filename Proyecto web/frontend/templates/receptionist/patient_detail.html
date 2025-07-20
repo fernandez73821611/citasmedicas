@@ -1,0 +1,348 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">
+        <i class="bi bi-person-circle"></i>
+        {{ patient.full_name }}
+    </h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <a href="{{ url_for('receptionist.patients') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Volver a Lista
+            </a>
+            <a href="{{ url_for('receptionist.edit_patient', patient_id=patient.id) }}" class="btn btn-primary">
+                <i class="bi bi-pencil"></i> Editar
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Información del Paciente -->
+    <div class="col-md-8">
+        <!-- Datos Personales -->
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="bi bi-person-badge"></i> Información Personal
+                </h5>
+                <span class="badge bg-{{ patient.gender == 'M' and 'primary' or 'danger' }}">
+                    {{ patient.gender == 'M' and 'Masculino' or 'Femenino' }}
+                </span>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p class="mb-2">
+                            <strong>DNI:</strong> {{ patient.dni }}
+                        </p>
+                        <p class="mb-2">
+                            <strong>Nombres:</strong> {{ patient.first_name }}
+                        </p>
+                        <p class="mb-2">
+                            <strong>Apellidos:</strong> {{ patient.last_name }}
+                        </p>
+                        <p class="mb-2">
+                            <strong>Fecha de Nacimiento:</strong> {{ patient.birth_date|dateformat }}
+                        </p>
+                    </div>
+                    <div class="col-md-6">
+                        <p class="mb-2">
+                            <strong>Edad:</strong> {{ patient.age }} años
+                            {% if patient.is_minor %}
+                                <span class="badge bg-warning text-dark ms-2">
+                                    <i class="bi bi-shield-check"></i> Menor de Edad
+                                </span>
+                            {% endif %}
+                        </p>
+                        <p class="mb-2">
+                            <strong>Registrado:</strong> {{ patient.created_at|datetimeformat }}
+                        </p>
+                        <p class="mb-2">
+                            <strong>Última Actualización:</strong> {{ patient.updated_at|datetimeformat }}
+                        </p>
+                        <p class="mb-2">
+                            <strong>Grupo Etario:</strong> 
+                            <span class="badge bg-info">{{ patient.age_group_label }}</span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Información de Contacto -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-telephone"></i> Información de Contacto
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p class="mb-2">
+                            <strong>Teléfono:</strong>
+                            {% if patient.phone %}
+                                <a href="tel:{{ patient.phone }}" class="text-decoration-none">
+                                    <i class="bi bi-telephone"></i> {{ patient.phone }}
+                                </a>
+                            {% else %}
+                                <span class="text-muted">No especificado</span>
+                            {% endif %}
+                        </p>
+                        <p class="mb-2">
+                            <strong>Email:</strong>
+                            {% if patient.email %}
+                                <a href="mailto:{{ patient.email }}" class="text-decoration-none">
+                                    <i class="bi bi-envelope"></i> {{ patient.email }}
+                                </a>
+                            {% else %}
+                                <span class="text-muted">No especificado</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                    <div class="col-md-6">
+                        <p class="mb-2">
+                            <strong>Dirección:</strong>
+                            {% if patient.address %}
+                                {{ patient.address }}
+                            {% else %}
+                                <span class="text-muted">No especificada</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Información de Apoderado/Tutor (solo para menores de edad) -->
+        {% if patient.is_minor %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-shield-check text-warning"></i> Apoderado/Tutor Legal
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if patient.guardian_name %}
+                <div class="row">
+                    <div class="col-md-6">
+                        <p class="mb-2">
+                            <strong>Nombre:</strong> {{ patient.guardian_name }}
+                        </p>
+                        <p class="mb-2">
+                            <strong>DNI:</strong> {{ patient.guardian_dni }}
+                        </p>
+                    </div>
+                    <div class="col-md-6">
+                        <p class="mb-2">
+                            <strong>Teléfono:</strong>
+                            {% if patient.guardian_phone %}
+                                <a href="tel:{{ patient.guardian_phone }}" class="text-decoration-none">
+                                    <i class="bi bi-telephone"></i> {{ patient.guardian_phone }}
+                                </a>
+                            {% else %}
+                                <span class="text-muted">No especificado</span>
+                            {% endif %}
+                        </p>
+                        <p class="mb-2">
+                            <strong>Parentesco:</strong> {{ patient.guardian_relationship or 'No especificado' }}
+                        </p>
+                    </div>
+                </div>
+                {% else %}
+                <div class="text-center text-muted py-3">
+                    <i class="bi bi-exclamation-triangle fs-3 text-warning"></i>
+                    <p class="mt-2">
+                        <strong>⚠️ Atención:</strong> Este paciente es menor de edad y no tiene información de apoderado registrada.
+                    </p>
+                    <p class="text-danger small">
+                        Es obligatorio registrar los datos del apoderado/tutor legal para pacientes menores de 18 años.
+                    </p>
+                    <a href="{{ url_for('receptionist.edit_patient', patient_id=patient.id) }}" class="btn btn-warning btn-sm">
+                        <i class="bi bi-plus"></i> Agregar Apoderado
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Contacto de Emergencia -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-shield-exclamation"></i> Contacto de Emergencia
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if patient.emergency_contact_name %}
+                <div class="row">
+                    <div class="col-md-6">
+                        <p class="mb-2">
+                            <strong>Nombre:</strong> {{ patient.emergency_contact_name }}
+                        </p>
+                        <p class="mb-2">
+                            <strong>Relación:</strong> {{ patient.emergency_contact_relationship or 'No especificada' }}
+                        </p>
+                    </div>
+                    <div class="col-md-6">
+                        <p class="mb-2">
+                            <strong>Teléfono:</strong>
+                            {% if patient.emergency_contact_phone %}
+                                <a href="tel:{{ patient.emergency_contact_phone }}" class="text-decoration-none">
+                                    <i class="bi bi-telephone"></i> {{ patient.emergency_contact_phone }}
+                                </a>
+                            {% else %}
+                                <span class="text-muted">No especificado</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+                {% else %}
+                <div class="text-center text-muted py-3">
+                    <i class="bi bi-exclamation-triangle fs-3"></i>
+                    <p class="mt-2">No se ha registrado contacto de emergencia</p>
+                    <a href="{{ url_for('receptionist.edit_patient', patient_id=patient.id) }}" class="btn btn-outline-warning btn-sm">
+                        <i class="bi bi-plus"></i> Agregar Contacto
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Historial de Citas -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-calendar-check"></i> Historial de Citas
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if recent_appointments %}
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Hora</th>
+                                <th>Médico</th>
+                                <th>Especialidad</th>
+                                <th>Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for appointment in recent_appointments %}
+                            <tr>
+                                <td>{{ appointment.date_time|dateformat }}</td>
+                                <td>{{ appointment.date_time|dateformat('%H:%M') }}</td>
+                                <td>{{ appointment.doctor.full_name }}</td>
+                                <td>{{ appointment.doctor.specialty.name if appointment.doctor.specialty else 'General' }}</td>
+                                <td>
+                                    <span class="badge bg-{{ 
+                                        'success' if appointment.status == 'completed' else
+                                        'warning' if appointment.status == 'scheduled' else
+                                        'danger' if appointment.status == 'cancelled' else
+                                        'secondary'
+                                    }}">
+                                        {{ appointment.status.title() }}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center text-muted py-4">
+                    <i class="bi bi-calendar-x fs-3"></i>
+                    <p class="mt-2">No hay citas registradas para este paciente</p>
+                    <a href="{{ url_for('receptionist.new_appointment', patient_id=patient.id) }}" class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-plus"></i> Programar Primera Cita
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Panel Lateral -->
+    <div class="col-md-4">
+        <!-- Resumen del Paciente -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h6 class="mb-0">Resumen del Paciente</h6>
+            </div>
+            <div class="card-body text-center">
+                <div class="avatar mb-3">
+                    {% if patient.gender == 'M' %}
+                        <i class="bi bi-person-circle text-primary" style="font-size: 4rem;"></i>
+                    {% else %}
+                        <i class="bi bi-person-circle text-danger" style="font-size: 4rem;"></i>
+                    {% endif %}
+                </div>
+                <h5>{{ patient.full_name }}</h5>
+                <p class="text-muted">{{ patient.dni }}</p>
+                <p class="text-muted">{{ patient.age }} años</p>
+                
+                {% if patient.is_minor %}
+                    <div class="alert alert-warning py-2 mt-3">
+                        <i class="bi bi-shield-exclamation"></i>
+                        <strong>Menor de Edad</strong>
+                        <br>
+                        <small>Se requiere autorización del apoderado</small>
+                    </div>
+                {% endif %}
+                
+                {% if patient.guardian_name and patient.is_minor %}
+                    <div class="mt-3">
+                        <small class="text-muted">Apoderado:</small>
+                        <br>
+                        <strong>{{ patient.guardian_name }}</strong>
+                        <br>
+                        <small>{{ patient.guardian_relationship or 'Sin parentesco especificado' }}</small>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Estadísticas Rápidas -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h6 class="mb-0">Estadísticas</h6>
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Total de Citas:</span>
+                    <strong>{{ patient.appointments.count() }}</strong>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Citas Completadas:</span>
+                    <strong>{{ patient.appointments.filter_by(status='completed').count() }}</strong>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Historia Clínica:</span>
+                    <strong class="text-{{ 'success' if patient.has_medical_history() else 'warning' }}">
+                        {{ 'Sí' if patient.has_medical_history() else 'No' }}
+                    </strong>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Grupo Etario:</span>
+                    <strong>{{ patient.age_group_label }}</strong>
+                </div>
+                <div class="d-flex justify-content-between">
+                    <span>Última Cita:</span>
+                    <strong>
+                        {% if recent_appointments %}
+                            {{ recent_appointments[0].date_time|dateformat('%d/%m/%y') }}
+                        {% else %}
+                            N/A
+                        {% endif %}
+                    </strong>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

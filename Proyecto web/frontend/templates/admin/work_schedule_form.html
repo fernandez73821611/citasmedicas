@@ -1,0 +1,362 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>
+        <i class="fas fa-clock"></i> {{ title }}
+    </h2>
+    <a href="{{ url_for('admin.doctor_schedule_detail', doctor_id=doctor.id) }}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Volver
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-calendar-plus"></i> 
+                    {% if schedule %}
+                        Editar Horario de Trabajo
+                    {% else %}
+                        Nuevo Horario de Trabajo
+                    {% endif %}
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" novalidate>
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    
+                    <!-- Información del doctor -->
+                    <div class="alert alert-info mb-4">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-user-md fa-2x me-3"></i>
+                            <div>
+                                <h6 class="mb-1">Dr. {{ doctor.full_name }}</h6>
+                                <small>{{ doctor.email }}</small>
+                                {% if doctor.specialty %}
+                                    <br><span class="badge bg-info mt-1">{{ doctor.specialty.name }}</span>
+                                {% else %}
+                                    <br><span class="badge bg-secondary mt-1">Sin especialidad asignada</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <!-- Día de la semana (solo para nuevos horarios) -->
+                        {% if not schedule %}
+                        <div class="col-md-6 mb-3">
+                            <label for="day_of_week" class="form-label">
+                                <i class="fas fa-calendar-day"></i> Día de la Semana *
+                            </label>
+                            <select class="form-select" id="day_of_week" name="day_of_week" required>
+                                <option value="">Seleccionar día...</option>
+                                {% for i in range(7) %}
+                                <option value="{{ i }}" {{ 'selected' if request.args.get('day') == i|string }}>
+                                    {{ days[i] }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        {% else %}
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">
+                                <i class="fas fa-calendar-day"></i> Día de la Semana
+                            </label>
+                            <input type="text" class="form-control" value="{{ schedule.day_name }}" readonly>
+                        </div>
+                        {% endif %}
+                        
+                        <!-- Especialidad (solo informativa) -->
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">
+                                <i class="fas fa-stethoscope"></i> Especialidad
+                            </label>
+                            <input type="text" class="form-control" 
+                                   value="{% if doctor.specialty %}{{ doctor.specialty.name }}{% else %}Medicina General{% endif %}" 
+                                   readonly>
+                            <div class="form-text">
+                                <i class="fas fa-info-circle"></i> 
+                                La especialidad se asigna al crear el usuario doctor
+                            </div>
+                        </div>
+                        
+                        <!-- Fecha de inicio de validez -->
+                        <div class="col-md-6 mb-3">
+                            <label for="start_date" class="form-label">
+                                <i class="fas fa-calendar-day"></i> Fecha de Inicio *
+                            </label>
+                            <input type="date" class="form-control" id="start_date" name="start_date" 
+                                   required
+                                   value="{% if schedule and schedule.start_date %}{{ schedule.start_date.strftime('%Y-%m-%d') }}{% endif %}">
+                            <div class="form-text">
+                                <i class="fas fa-info-circle"></i> 
+                                Fecha desde la cual el horario está vigente
+                                {% if schedule %}
+                                    <br><i class="fas fa-sync-alt text-warning"></i> 
+                                    <strong>Nota:</strong> Al cambiar esta fecha, se actualizará automáticamente para todos los días de la semana del doctor.
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <!-- Fecha de fin de validez -->
+                        <div class="col-md-6 mb-3">
+                            <label for="end_date" class="form-label">
+                                <i class="fas fa-calendar-day"></i> Fecha de Fin
+                            </label>
+                            <input type="date" class="form-control" id="end_date" name="end_date"
+                                   value="{% if schedule and schedule.end_date %}{{ schedule.end_date.strftime('%Y-%m-%d') }}{% endif %}">
+                            <div class="form-text">
+                                <i class="fas fa-info-circle"></i> 
+                                Fecha hasta la cual el horario está vigente (opcional)
+                                {% if schedule %}
+                                    <br><i class="fas fa-sync-alt text-warning"></i> 
+                                    <strong>Nota:</strong> Al cambiar esta fecha, se actualizará automáticamente para todos los días de la semana del doctor.
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <!-- Hora de inicio -->
+                        <div class="col-md-6 mb-3">
+                            <label for="start_time" class="form-label">
+                                <i class="fas fa-clock"></i> Hora de Inicio *
+                            </label>
+                            <input type="time" class="form-control" id="start_time" name="start_time" 
+                                   required step="300"
+                                   value="{% if schedule %}{{ schedule.start_time.strftime('%H:%M') }}{% endif %}">
+                        </div>
+                        
+                        <!-- Hora de fin -->
+                        <div class="col-md-6 mb-3">
+                            <label for="end_time" class="form-label">
+                                <i class="fas fa-clock"></i> Hora de Fin *
+                            </label>
+                            <input type="time" class="form-control" id="end_time" name="end_time" 
+                                   required step="300"
+                                   value="{% if schedule %}{{ schedule.end_time.strftime('%H:%M') }}{% endif %}">
+                        </div>
+                        
+                        <!-- Duración de cita -->
+                        <div class="col-md-6 mb-3">
+                            <label for="appointment_duration" class="form-label">
+                                <i class="fas fa-hourglass-half"></i> Duración por Cita (minutos) *
+                            </label>
+                            <select class="form-select" id="appointment_duration" name="appointment_duration" required>
+                                {% set durations = [15, 20, 30, 45, 60, 90] %}
+                                {% for duration in durations %}
+                                <option value="{{ duration }}" 
+                                        {{ 'selected' if schedule and schedule.appointment_duration == duration else 'selected' if not schedule and duration == 30 }}>
+                                    {{ duration }} minutos
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <!-- Límite de pacientes por día -->
+                        <div class="col-md-6 mb-3">
+                            <label for="max_patients_per_day" class="form-label">
+                                <i class="fas fa-users"></i> Límite Pacientes/Día
+                            </label>
+                            <input type="number" class="form-control" id="max_patients_per_day" 
+                                   name="max_patients_per_day" min="1" max="50"
+                                   value="{% if schedule and schedule.max_patients_per_day %}{{ schedule.max_patients_per_day }}{% endif %}">
+                            <div class="form-text">
+                                <i class="fas fa-info-circle"></i> 
+                                Opcional: Máximo número de pacientes para este día
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Sección de descanso -->
+                    <div class="card mt-4">
+                        <div class="card-header">
+                            <h6 class="mb-0">
+                                <i class="fas fa-coffee"></i> Horario de Descanso (Opcional)
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="break_start_time" class="form-label">
+                                        <i class="fas fa-play"></i> Inicio Descanso
+                                    </label>
+                                    <input type="time" class="form-control" id="break_start_time" 
+                                           name="break_start_time" step="300"
+                                           value="{% if schedule and schedule.break_start_time %}{{ schedule.break_start_time.strftime('%H:%M') }}{% endif %}">
+                                </div>
+                                
+                                <div class="col-md-6 mb-3">
+                                    <label for="break_end_time" class="form-label">
+                                        <i class="fas fa-stop"></i> Fin Descanso
+                                    </label>
+                                    <input type="time" class="form-control" id="break_end_time" 
+                                           name="break_end_time" step="300"
+                                           value="{% if schedule and schedule.break_end_time %}{{ schedule.break_end_time.strftime('%H:%M') }}{% endif %}">
+                                </div>
+                            </div>
+                            <div class="alert alert-warning">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                <strong>Nota:</strong> Durante el horario de descanso no se programarán citas automáticamente.
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Botones de acción -->
+                    <div class="d-flex justify-content-end gap-2 mt-4">
+                        <a href="{{ url_for('admin.doctor_schedule_detail', doctor_id=doctor.id) }}" 
+                           class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Cancelar
+                        </a>
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-save"></i> 
+                            {% if schedule %}
+                                Actualizar Horario
+                            {% else %}
+                                Crear Horario
+                            {% endif %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-info-circle"></i> Información
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <h6><i class="fas fa-lightbulb"></i> Consejos:</h6>
+                    <ul class="mb-0 small">
+                        <li>Configure horarios realistas para la especialidad</li>
+                        <li>Considere tiempo de preparación entre pacientes</li>
+                        <li>El descanso evita citas durante esos horarios</li>
+                        <li>Los límites de pacientes ayudan a controlar la carga</li>
+                    </ul>
+                </div>
+                
+                {% if schedule %}
+                <div class="alert alert-secondary">
+                    <h6><i class="fas fa-clock"></i> Horario Actual:</h6>
+                    <ul class="mb-0 small">
+                        <li><strong>Día:</strong> {{ schedule.day_name }}</li>
+                        <li><strong>Horario:</strong> {{ schedule.time_range }}</li>
+                        <li><strong>Duración:</strong> {{ schedule.appointment_duration }} min</li>
+                        {% if schedule.break_time_range %}
+                        <li><strong>Descanso:</strong> {{ schedule.break_time_range }}</li>
+                        {% endif %}
+                        {% if schedule.date_range %}
+                        <li><strong>Vigencia:</strong> {{ schedule.date_range }}</li>
+                        {% endif %}
+                        {% if doctor.specialty %}
+                        <li><strong>Especialidad:</strong> {{ doctor.specialty.name }}</li>
+                        {% endif %}
+                        {% if doctor.schedule_validity_date %}
+                        <li><strong>Vigencia:</strong> {{ doctor.schedule_validity_display }}</li>
+                        {% endif %}
+                        <li><strong>Estado:</strong> 
+                            {% if schedule.is_active %}
+                                <span class="badge bg-success">Activo</span>
+                            {% else %}
+                                <span class="badge bg-warning">Inactivo</span>
+                            {% endif %}
+                        </li>
+                    </ul>
+                </div>
+                {% endif %}
+                
+                <div class="alert alert-warning">
+                    <h6><i class="fas fa-exclamation-triangle"></i> Importante:</h6>
+                    <p class="mb-0 small">
+                        Los cambios en horarios solo afectan citas futuras. 
+                        Las citas ya programadas mantienen su horario original.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Alerta informativa para horarios existentes -->
+{% if schedule %}
+<div class="alert alert-warning d-flex align-items-center mb-4" role="alert">
+    <i class="fas fa-sync-alt fa-2x me-3"></i>
+    <div>
+        <h6 class="alert-heading mb-1">🔄 Sincronización de Fechas de Vigencia</h6>
+        <p class="mb-0">
+            <strong>Importante:</strong> Al modificar las fechas de vigencia (inicio/fin), estas se actualizarán automáticamente 
+            para todos los días de la semana del Dr. {{ doctor.full_name }}. Los demás campos (horarios, duración, etc.) 
+            se actualizarán solo para este día.
+        </p>
+    </div>
+</div>
+{% endif %}
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Validación de horarios
+    const startTime = document.getElementById('start_time');
+    const endTime = document.getElementById('end_time');
+    const breakStart = document.getElementById('break_start_time');
+    const breakEnd = document.getElementById('break_end_time');
+    const startDate = document.getElementById('start_date');
+    const endDate = document.getElementById('end_date');
+    
+    function validateTimes() {
+        const start = startTime.value;
+        const end = endTime.value;
+        const bStart = breakStart.value;
+        const bEnd = breakEnd.value;
+        const sDate = startDate.value;
+        const eDate = endDate.value;
+        
+        // Validar que fin sea posterior a inicio
+        if (start && end && start >= end) {
+            endTime.setCustomValidity('La hora de fin debe ser posterior a la hora de inicio');
+        } else {
+            endTime.setCustomValidity('');
+        }
+        
+        // Validar fechas
+        if (sDate && eDate && sDate > eDate) {
+            endDate.setCustomValidity('La fecha de fin debe ser posterior a la fecha de inicio');
+        } else {
+            endDate.setCustomValidity('');
+        }
+        
+        // Validar descanso
+        if (bStart && bEnd) {
+            if (bStart >= bEnd) {
+                breakEnd.setCustomValidity('La hora de fin del descanso debe ser posterior a la hora de inicio');
+            } else if (bStart < start || bEnd > end) {
+                breakStart.setCustomValidity('El descanso debe estar dentro del horario de trabajo');
+                breakEnd.setCustomValidity('El descanso debe estar dentro del horario de trabajo');
+            } else {
+                breakStart.setCustomValidity('');
+                breakEnd.setCustomValidity('');
+            }
+        } else if (bStart || bEnd) {
+            if (!bStart) breakStart.setCustomValidity('Complete ambos horarios del descanso');
+            if (!bEnd) breakEnd.setCustomValidity('Complete ambos horarios del descanso');
+        } else {
+            breakStart.setCustomValidity('');
+            breakEnd.setCustomValidity('');
+        }
+    }
+    
+    startTime.addEventListener('change', validateTimes);
+    endTime.addEventListener('change', validateTimes);
+    breakStart.addEventListener('change', validateTimes);
+    breakEnd.addEventListener('change', validateTimes);
+    startDate.addEventListener('change', validateTimes);
+    endDate.addEventListener('change', validateTimes);
+});
+</script>
+{% endblock %}

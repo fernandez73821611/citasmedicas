@@ -1,0 +1,1065 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .service-row {
+        border: 1px solid #dee2e6;
+        border-radius: 6px;
+        margin-bottom: 10px;
+        padding: 15px;
+        background-color: #f8f9fa;
+    }
+    .service-header {
+        background-color: #e9ecef;
+        padding: 10px;
+        border-radius: 6px 6px 0 0;
+        margin: -15px -15px 15px -15px;
+        border-bottom: 1px solid #dee2e6;
+    }
+    .calculation-row {
+        background-color: #f8f9fa;
+        padding: 10px;
+        border-radius: 6px;
+        margin-top: 15px;
+    }
+    .total-row {
+        background-color: #e9ecef;
+        padding: 15px;
+        border-radius: 6px;
+        margin-top: 10px;
+        font-weight: bold;
+    }
+    .remove-service {
+        color: #dc3545;
+        cursor: pointer;
+        font-size: 1.2em;
+    }
+    .remove-service:hover {
+        color: #c82333;
+    }    .form-control:focus {
+        border-color: #80bdff;
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">
+        <i class="bi bi-cash-coin"></i> Nuevo Pago
+    </h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{{ url_for('receptionist.billing') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Volver a Facturación
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <form method="POST" id="invoiceForm">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-person"></i> Información del Paciente
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="patient_search" class="form-label">
+                                    <i class="bi bi-person-check"></i> Paciente *
+                                </label>
+                                <div class="position-relative">
+                                    <input type="text" class="form-control" id="patient_search" placeholder="Buscar paciente por nombre o DNI..." autocomplete="off" required>
+                                    <div id="patient_search_results" class="dropdown-menu w-100" style="display: none; position: absolute; z-index: 1000;">
+                                        <!-- Los resultados de la búsqueda se cargarán aquí dinámicamente -->
+                                    </div>
+                                </div>
+                                <input type="hidden" id="patient_id" name="patient_id">
+                                <div class="form-text">
+                                    <i class="bi bi-info-circle"></i> Escriba al menos 3 caracteres para buscar pacientes
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">                            <div class="mb-3">
+                                <label class="form-label">
+                                    <i class="bi bi-info-circle"></i> Información del Paciente
+                                </label>
+                                <div id="patient_info" class="form-control" style="background-color: #f8f9fa; min-height: 60px;">
+                                    Seleccione un paciente para ver su información
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mt-3">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="bi bi-calendar-check"></i> Información de la Cita
+                    </h5>
+                    <button type="button" class="btn btn-sm btn-outline-primary" id="editAppointment">
+                        <i class="bi bi-pencil"></i> Editar
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div id="appointment-info" class="row">
+                        <div class="col-md-12">
+                            <div class="alert alert-info">
+                                <i class="bi bi-info-circle"></i> 
+                                Seleccione un paciente para ver la información de su cita
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Formulario de edición (oculto por defecto) -->
+                    <div id="appointment-edit-form" style="display: none;">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="appointment_date" class="form-label">
+                                        <i class="bi bi-calendar"></i> Fecha de Cita
+                                    </label>
+                                    <input type="datetime-local" class="form-control" id="appointment_date" name="appointment_date">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="doctor_name" class="form-label">
+                                        <i class="bi bi-person-badge"></i> Doctor
+                                    </label>
+                                    <input type="text" class="form-control" id="doctor_name" name="doctor_name" readonly>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="specialty" class="form-label">
+                                        <i class="bi bi-heart-pulse"></i> Especialidad
+                                    </label>
+                                    <input type="text" class="form-control" id="specialty" name="specialty" readonly>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="service_cost" class="form-label">
+                                        <i class="bi bi-currency-dollar"></i> Costo del Servicio
+                                    </label>
+                                    <input type="text" class="form-control" id="service_cost" name="service_cost" readonly>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="appointment_notes" class="form-label">
+                                <i class="bi bi-clipboard"></i> Motivo de Consulta
+                            </label>
+                            <textarea class="form-control" id="appointment_notes" name="appointment_notes" rows="3"></textarea>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-success" id="saveAppointment">
+                                <i class="bi bi-check"></i> Guardar Cambios
+                            </button>
+                            <button type="button" class="btn btn-secondary" id="cancelEdit">
+                                <i class="bi bi-x"></i> Cancelar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-credit-card"></i> Detalles de Pago
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="payment_date" class="form-label">
+                                    <i class="bi bi-calendar"></i> Fecha de Pago
+                                </label>
+                                <input type="date" class="form-control" id="payment_date" name="payment_date" 
+                                       readonly style="background-color: #f8f9fa;">
+                                <small class="text-muted">Fecha actual (no modificable)</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="total_amount" class="form-label">
+                                    <i class="bi bi-currency-dollar"></i> Total a Pagar
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text">S/</span>
+                                    <input type="number" class="form-control" id="total_amount" name="total_amount" 
+                                           value="0.00" step="0.01" readonly style="background-color: #f8f9fa; font-weight: bold;">
+                                </div>
+                                <small class="text-muted">Monto establecido por administración</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="payment_method" class="form-label">
+                                    <i class="bi bi-credit-card"></i> Método de Pago *
+                                </label>
+                                <select class="form-control" id="payment_method" name="payment_method" required>
+                                    <option value="">Seleccionar método...</option>
+                                    <option value="efectivo">💵 Efectivo</option>
+                                    <option value="tarjeta_debito">💳 Tarjeta de Débito</option>
+                                    <option value="tarjeta_credito">💳 Tarjeta de Crédito</option>
+                                    <option value="transferencia">🏦 Transferencia Bancaria</option>
+                                    <option value="yape">📱 Yape</option>
+                                    <option value="plin">📱 Plin</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="voucher_type" class="form-label">
+                                    <i class="bi bi-receipt"></i> Tipo de Comprobante *
+                                </label>
+                                <select class="form-control" id="voucher_type" name="voucher_type" required>
+                                    <option value="">Seleccionar comprobante...</option>
+                                    <option value="boleta">🧾 Boleta de Venta</option>
+                                    <option value="factura">📄 Factura</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Campos dinámicos para Boleta -->
+                    <div id="boleta-fields" style="display: none;">
+                        <div class="alert alert-info">
+                            <h6><i class="bi bi-info-circle"></i> Datos para Boleta de Venta</h6>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="client_name" class="form-label">Nombre del Cliente *</label>
+                                    <input type="text" class="form-control" id="client_name" name="client_name">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="client_dni" class="form-label">DNI *</label>
+                                    <input type="text" class="form-control" id="client_dni" name="client_dni" 
+                                           pattern="[0-9]{8}" maxlength="8">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Campos dinámicos para Factura -->
+                    <div id="factura-fields" style="display: none;">
+                        <div class="alert alert-warning">
+                            <h6><i class="bi bi-exclamation-triangle"></i> Datos para Factura</h6>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="company_name" class="form-label">Razón Social *</label>
+                                    <input type="text" class="form-control" id="company_name" name="company_name">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="company_ruc" class="form-label">RUC *</label>
+                                    <input type="text" class="form-control" id="company_ruc" name="company_ruc" 
+                                           pattern="[0-9]{11}" maxlength="11">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-12">
+                                <div class="mb-3">
+                                    <label for="company_address" class="form-label">Dirección Fiscal *</label>
+                                    <input type="text" class="form-control" id="company_address" name="company_address">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="payment_notes" class="form-label">
+                            <i class="bi bi-card-text"></i> Observaciones
+                        </label>
+                        <textarea class="form-control" id="payment_notes" name="payment_notes" rows="3" 
+                                  placeholder="Observaciones adicionales del pago..."></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-end gap-2 mt-4">
+                <a href="{{ url_for('receptionist.billing') }}" class="btn btn-secondary">
+                    <i class="bi bi-x"></i> Cancelar
+                </a>
+                <button type="submit" class="btn btn-success">
+                    <i class="bi bi-cash-coin"></i> Generar Pago
+                </button>
+                <button type="button" class="btn btn-primary" id="printVoucher" style="display: none;">
+                    <i class="bi bi-printer"></i> Imprimir Comprobante
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="bi bi-info-circle"></i> Información
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <h6>Instrucciones:</h6>
+                    <ul class="mb-0">
+                        <li>Seleccione el paciente para procesar el pago</li>
+                        <li>Verifique la información de la cita</li>
+                        <li>Configure el método de pago</li>
+                        <li>Seleccione el tipo de comprobante</li>
+                        <li>Complete los datos según el tipo de comprobante</li>
+                    </ul>
+                </div>
+                
+                <div class="alert alert-warning">
+                    <h6>Política de Clínica:</h6>
+                    <p class="mb-0">Se requiere pago completo antes de proceder con la atención médica. No se permiten pagos parciales.</p>
+                </div>
+                
+                <div class="alert alert-success">
+                    <h6>Tipos de Comprobante:</h6>
+                    <p class="mb-2"><strong>Boleta:</strong> Para personas naturales (requiere DNI)</p>
+                    <p class="mb-0"><strong>Factura:</strong> Para empresas (requiere RUC y datos fiscales)</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Resumen de Pago -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="bi bi-calculator"></i> Resumen de Pago
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <span>Costo del Servicio:</span>
+                    <strong id="summary-total">S/ 0.00</strong>
+                </div>
+                <hr>
+                <div class="d-flex justify-content-between">
+                    <span><strong>Total a Pagar:</strong></span>
+                    <strong class="text-success" id="summary-final">S/ 0.00</strong>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+// Función global para mostrar/ocultar campos de comprobante
+function toggleVoucherFields(voucherType) {
+    const boletaFields = document.getElementById('boleta-fields');
+    const facturaFields = document.getElementById('factura-fields');
+    
+    // Limpiar alertas anteriores
+    $('#minor-alert, #minor-factura-alert').remove();
+    
+    // Ocultar todos los campos primero
+    if (boletaFields) boletaFields.style.display = 'none';
+    if (facturaFields) facturaFields.style.display = 'none';
+    
+    if (voucherType === 'boleta' && boletaFields) {
+        boletaFields.style.display = 'block';
+        // Hacer campos requeridos
+        $('#client_name, #client_dni').attr('required', true);
+        $('#company_name, #company_ruc, #company_address').removeAttr('required');
+        
+        // Auto-completar con datos apropiados
+        if (window.currentPatientData) {
+            autoFillVoucherFields('boleta', window.currentPatientData);
+        }
+    } else if (voucherType === 'factura' && facturaFields) {
+        facturaFields.style.display = 'block';
+        // Hacer campos requeridos
+        $('#company_name, #company_ruc, #company_address').attr('required', true);
+        $('#client_name, #client_dni').removeAttr('required');
+        
+        // Auto-completar con datos apropiados
+        if (window.currentPatientData) {
+            autoFillVoucherFields('factura', window.currentPatientData);
+        }
+    } else {
+        // Quitar todos los requerimientos
+        $('#client_name, #client_dni, #company_name, #company_ruc, #company_address').removeAttr('required');
+    }
+}
+
+// Función para auto-completar campos según el tipo de comprobante y si es menor de edad
+function autoFillVoucherFields(voucherType, patientData) {
+    if (!patientData || !patientData.id) return;
+    
+    if (voucherType === 'boleta') {
+        // Para boleta: usar datos del tutor si es menor de edad, sino del paciente
+        if (patientData.isMinor && patientData.guardianName && patientData.guardianDni) {
+            // Usar datos del tutor para menor de edad
+            $('#client_name').val(patientData.guardianName);
+            $('#client_dni').val(patientData.guardianDni);
+            
+            // Mostrar alerta informativa
+            if (!$('#minor-alert').length) {
+                $('#boleta-fields .alert').after(`
+                    <div id="minor-alert" class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle"></i> 
+                        <strong>Paciente menor de edad:</strong> Se han cargado los datos del tutor legal para la boleta.
+                    </div>
+                `);
+            }
+        } else {
+            // Usar datos del paciente
+            $('#client_name').val(`${patientData.name} ${patientData.lastname}`);
+            $('#client_dni').val(patientData.dni);
+            
+            // Remover alerta si existe
+            $('#minor-alert').remove();
+        }
+    } else if (voucherType === 'factura') {
+        // Para factura: siempre usar datos del tutor si es menor de edad
+        if (patientData.isMinor && patientData.guardianName && patientData.guardianDni) {
+            // Limpiar campos ya que factura requiere datos de empresa
+            $('#company_name').val('');
+            $('#company_ruc').val('');
+            $('#company_address').val('');
+            
+            // Mostrar alerta informativa
+            if (!$('#minor-factura-alert').length) {
+                $('#factura-fields .alert').after(`
+                    <div id="minor-factura-alert" class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle"></i> 
+                        <strong>Paciente menor de edad:</strong> Para generar factura, debe ingresar los datos de la empresa a nombre del tutor legal: <strong>${patientData.guardianName}</strong> (DNI: ${patientData.guardianDni}).
+                    </div>
+                `);
+            }
+        } else {
+            // Limpiar campos para que el usuario ingrese datos de empresa
+            $('#company_name').val('');
+            $('#company_ruc').val('');
+            $('#company_address').val('');
+            
+            // Remover alerta si existe
+            $('#minor-factura-alert').remove();
+        }
+    }
+}
+
+$(document).ready(function() {
+    // Configurar AJAX para incluir cookies de sesión
+    $.ajaxSetup({
+        beforeSend: function(xhr, settings) {
+            if (!/^(GET|HEAD|OPTIONS|TRACE)$/i.test(settings.type) && !this.crossDomain) {
+                xhr.setRequestHeader("X-CSRFToken", $('meta[name=csrf-token]').attr('content'));
+            }
+        }
+    });
+    
+    // Inicializar fecha de pago con la fecha actual
+    const today = new Date().toISOString().split('T')[0];
+    $('#payment_date').val(today);
+
+    // Lista de pacientes para autocompletado (inicialmente vacía, se llenará con AJAX)
+    let patientsList = [];
+    
+    // Cargar lista inicial de pacientes (opcional, ya que ahora usamos búsqueda en tiempo real)
+    function loadInitialPatients() {
+        console.log('Cargando lista inicial de pacientes...');
+        $.ajax({
+            url: '/receptionist/api/patients/search',
+            method: 'GET',
+            data: { q: '' }, // Búsqueda vacía para obtener todos los pacientes
+            success: function(response) {
+                console.log('Lista inicial de pacientes cargada:', response);
+                if (response && response.success && Array.isArray(response.patients)) {
+                    patientsList = response.patients;
+                    console.log('Pacientes cargados:', patientsList.length);
+                } else {
+                    console.warn('La respuesta del servidor no contiene la lista de pacientes esperada');
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('Error al cargar la lista inicial de pacientes:', error);
+                console.error('Detalles del error:', xhr.responseText);
+            }
+        });
+    }
+    
+    // Cargar pacientes al inicio
+    $(document).ready(function() {
+        loadInitialPatients();
+    });
+
+    // Variables para controlar el tiempo de espera de la búsqueda
+    let searchTimeout;
+    const searchDelay = 300; // 300ms de retraso para la búsqueda
+    
+    // Función para buscar pacientes en el servidor
+    function searchPatients(query) {
+        if (query.length < 2) {
+            $('#patient_search_results').hide().empty();
+            return;
+        }
+        
+        console.log('Buscando pacientes con query:', query);
+        
+        $.ajax({
+            url: '/receptionist/api/patients/search',
+            method: 'GET',
+            data: { q: query },
+            success: function(response) {
+                console.log('Respuesta del servidor:', response);
+                const results = $('#patient_search_results');
+                results.empty();
+                
+                // Verificar si la respuesta tiene la estructura esperada
+                const patients = response.patients || [];
+                
+                if (patients && patients.length > 0) {
+                    patients.forEach(function(patient) {
+                        const fullName = `${patient.name} ${patient.lastname}`;
+                        const displayText = `${fullName} - DNI: ${patient.dni}`;
+                        
+                        const item = $('<a class="dropdown-item" href="#" style="cursor: pointer;"></a>')
+                            .text(displayText)
+                            .data('patient', patient)
+                            .on('click', function(e) {
+                                e.preventDefault();
+                                selectPatient(patient);
+                            });
+                        
+                        results.append(item);
+                    });
+                    
+                    results.show();
+                } else {
+                    // Mostrar mensaje cuando no hay resultados
+                    results.append($('<div class="dropdown-item text-muted">No se encontraron pacientes</div>'));
+                    results.show();
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('Error al buscar pacientes:', error);
+                console.error('Detalles del error:', xhr.responseText);
+                $('#patient_search_results').hide().empty();
+            }
+        });
+    }
+    
+    // Función para seleccionar un paciente de los resultados
+    function selectPatient(patient) {
+        $('#patient_search').val(`${patient.name} ${patient.lastname} - DNI: ${patient.dni}`);
+        $('#patient_id').val(patient.id);
+        $('#patient_search_results').hide();
+        
+        // Actualizar la información del paciente
+        updatePatientInfo(patient);
+        
+        // Cargar información de citas del paciente
+        loadAppointmentInfo(patient.id);
+    }
+    
+    // Manejar entrada en el campo de búsqueda
+    $('#patient_search').on('input', function() {
+        const query = $(this).val().trim();
+        
+        // Limpiar el temporizador anterior
+        clearTimeout(searchTimeout);
+        
+        // Si el campo está vacío, limpiar todo
+        if (query === '') {
+            $('#patient_id').val('');
+            updatePatientInfo(null);
+            resetAppointmentInfo();
+            $('#patient_search_results').hide().empty();
+            return;
+        }
+        
+        // Establecer un nuevo temporizador para la búsqueda
+        searchTimeout = setTimeout(function() {
+            searchPatients(query);
+        }, searchDelay);
+    });
+    
+    // Ocultar resultados al hacer clic fuera
+    $(document).on('click', function(e) {
+        if (!$(e.target).closest('#patient_search, #patient_search_results').length) {
+            $('#patient_search_results').hide();
+        }
+    });
+    
+    // Manejar teclas especiales en el campo de búsqueda
+    $('#patient_search').on('keydown', function(e) {
+        if (e.key === 'Escape') {
+            $('#patient_search_results').hide();
+        } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+            e.preventDefault();
+            const items = $('#patient_search_results .dropdown-item');
+            if (items.length === 0) return;
+            
+            let currentIndex = -1;
+            items.each(function(index) {
+                if ($(this).hasClass('active')) {
+                    currentIndex = index;
+                    $(this).removeClass('active');
+                    return false;
+                }
+            });
+            
+            if (e.key === 'ArrowDown') {
+                currentIndex = (currentIndex + 1) % items.length;
+            } else {
+                currentIndex = (currentIndex - 1 + items.length) % items.length;
+            }
+            
+            const selectedItem = items.eq(currentIndex).addClass('active');
+            const container = $('#patient_search_results');
+            const containerHeight = container.height();
+            const itemHeight = selectedItem.outerHeight();
+            const itemTop = selectedItem.position().top;
+            const scrollTop = container.scrollTop();
+            
+            if (itemTop + itemHeight > containerHeight + scrollTop) {
+                container.scrollTop(itemTop + itemHeight - containerHeight);
+            } else if (itemTop < 0) {
+                container.scrollTop(itemTop);
+            }
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            const selectedItem = $('#patient_search_results .dropdown-item.active').first();
+            if (selectedItem.length) {
+                const patient = selectedItem.data('patient');
+                selectPatient(patient);
+            }
+        }
+    });
+
+    function updatePatientInfo(patientData) {
+        const patientInfo = $('#patient_info');
+        
+        if (patientData && patientData.id) {
+            const email = patientData.email || 'No especificado';
+            const phone = patientData.phone || 'No especificado';
+            const address = patientData.address || 'No especificado';
+            
+            let patientInfoHtml = `
+                <strong>Nombre:</strong> ${patientData.name} ${patientData.lastname}<br>
+                <strong>DNI:</strong> ${patientData.dni}<br>
+                <strong>Email:</strong> ${email}<br>
+                <strong>Teléfono:</strong> ${phone}<br>
+                <strong>Dirección:</strong> ${address}
+            `;
+            
+            // Si es menor de edad, mostrar información del tutor
+            if (patientData.isMinor) {
+                const guardianName = patientData.guardianName || 'No especificado';
+                const guardianDni = patientData.guardianDni || 'No especificado';
+                const guardianPhone = patientData.guardianPhone || 'No especificado';
+                
+                patientInfoHtml += `<br><br>
+                    <div class="alert alert-warning p-2 mt-2">
+                        <strong><i class="bi bi-exclamation-triangle"></i> Menor de edad</strong><br>
+                        <strong>Tutor:</strong> ${guardianName}<br>
+                        <strong>DNI Tutor:</strong> ${guardianDni}<br>
+                        <strong>Teléfono Tutor:</strong> ${guardianPhone}
+                    </div>
+                `;
+            }
+            
+            patientInfo.html(patientInfoHtml);
+            
+            // Guardar datos del paciente para usar en auto-completado posterior
+            window.currentPatientData = patientData;
+            
+            // Auto-completar campos según el tipo de comprobante actual
+            const currentVoucherType = $('#voucher_type').val();
+            if (currentVoucherType) {
+                autoFillVoucherFields(currentVoucherType, patientData);
+            }
+        } else {
+            patientInfo.html('Seleccione un paciente para ver su información');
+            $('#client_name').val('');
+            $('#client_dni').val('');
+            window.currentPatientData = null;
+        }
+    }
+    
+    function loadAppointmentInfo(patientId) {
+        // Mostrar indicador de carga
+        $('#appointment-info').html(`
+            <div class="col-md-12">
+                <div class="alert alert-info">
+                    <i class="bi bi-clock"></i> 
+                    Cargando información de citas...
+                </div>
+            </div>
+        `);
+        
+        // Hacer petición AJAX para obtener citas del paciente
+        $.ajax({
+            url: `/receptionist/api/patient/${patientId}/appointments`,
+            method: 'GET',
+            success: function(response) {
+                if (response.success && response.appointments.length > 0) {
+                    // Usar la cita más reciente por defecto
+                    const appointment = response.appointments[0];
+                    
+                    // Usar la fecha ya formateada del backend para evitar problemas de zona horaria
+                    const formattedDate = appointment.date_formatted;
+                    
+                    // Determinar el estado de la cita
+                    let statusBadge = '';
+                    let alertClass = '';
+                    
+                    if (appointment.status === 'completed') {
+                        statusBadge = '<span class="badge bg-success">Completada</span>';
+                        alertClass = 'alert-success';
+                    } else if (appointment.status === 'scheduled') {
+                        statusBadge = '<span class="badge bg-warning">Programada</span>';
+                        alertClass = 'alert-warning';
+                    } else {
+                        statusBadge = '<span class="badge bg-secondary">Otro</span>';
+                        alertClass = 'alert-info';
+                    }
+                    
+                    $('#appointment-info').html(`
+                        <div class="col-md-6">
+                            <div class="mb-2">
+                                <strong><i class="bi bi-calendar"></i> Fecha y Hora:</strong><br>
+                                <span class="text-primary">${formattedDate}</span>
+                            </div>
+                            <div class="mb-2">
+                                <strong><i class="bi bi-person-badge"></i> Doctor:</strong><br>
+                                <span>${appointment.doctor}</span>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-2">
+                                <strong><i class="bi bi-heart-pulse"></i> Especialidad:</strong><br>
+                                <span>${appointment.specialty}</span>
+                            </div>
+                            <div class="mb-2">
+                                <strong><i class="bi bi-currency-dollar"></i> Costo:</strong><br>
+                                <span class="text-success h5">S/ ${appointment.cost.toFixed(2)}</span>
+                            </div>
+                        </div>
+                        <div class="col-md-12">
+                            <div class="mb-2">
+                                <strong><i class="bi bi-clipboard"></i> Motivo:</strong><br>
+                                <span>${appointment.reason}</span>
+                            </div>
+                            <div class="mb-2">
+                                <strong><i class="bi bi-info-circle"></i> Estado:</strong><br>
+                                ${statusBadge}
+                            </div>
+                        </div>
+                        ${appointment.can_be_billed ? '' : `
+                            <div class="col-md-12">
+                                <div class="alert alert-warning">
+                                    <i class="bi bi-exclamation-triangle"></i> 
+                                    Esta cita aún no ha sido completada. El pago se procesará como adelanto.
+                                </div>
+                            </div>
+                        `}
+                    `);
+                    
+                    // Actualizar campos de formulario ocultos
+                    $('#appointment_date').val(appointment.date);
+                    $('#doctor_name').val(appointment.doctor);
+                    $('#specialty').val(appointment.specialty);
+                    $('#service_cost').val(`S/ ${appointment.cost.toFixed(2)}`);
+                    $('#appointment_notes').val(appointment.notes);
+                    $('#total_amount').val(appointment.cost.toFixed(2));
+                    
+                    // Guardar ID de la cita para el formulario
+                    if (!$('#appointment_id').length) {
+                        $('#invoiceForm').append(`<input type="hidden" name="appointment_id" id="appointment_id" value="${appointment.id}">`);
+                    } else {
+                        $('#appointment_id').val(appointment.id);
+                    }
+                    
+                    // Actualizar resumen
+                    updateSummary(appointment.cost);
+                } else {
+                    // No hay citas
+                    $('#appointment-info').html(`
+                        <div class="col-md-12">
+                            <div class="alert alert-warning">
+                                <i class="bi bi-exclamation-triangle"></i> 
+                                Este paciente no tiene citas registradas. Puede proceder con un pago manual.
+                            </div>
+                        </div>
+                    `);
+                    
+                    // Establecer valores por defecto
+                    $('#total_amount').val('0.00');
+                    updateSummary(0);
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('Error al cargar información de citas:', error);
+                $('#appointment-info').html(`
+                    <div class="col-md-12">
+                        <div class="alert alert-danger">
+                            <i class="bi bi-exclamation-triangle"></i> 
+                            Error al cargar información de citas. Por favor, intente nuevamente.
+                        </div>
+                    </div>
+                `);
+            }
+        });
+    }
+    
+    function resetAppointmentInfo() {
+        $('#appointment-info').html(`
+            <div class="col-md-12">
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i> 
+                    Seleccione un paciente para ver la información de su cita
+                </div>
+            </div>
+        `);
+        $('#total_amount').val('0.00');
+        updateSummary(0);
+    }
+    
+    function updateSummary(amount) {
+        $('#summary-total').text(`S/ ${amount.toFixed(2)}`);
+        $('#summary-final').text(`S/ ${amount.toFixed(2)}`);
+    }
+    
+    // Manejar edición de cita
+    $('#editAppointment').on('click', function() {
+        $('#appointment-info').hide();
+        $('#appointment-edit-form').show();
+        $(this).hide();
+    });
+    
+    $('#cancelEdit').on('click', function() {
+        $('#appointment-edit-form').hide();
+        $('#appointment-info').show();
+        $('#editAppointment').show();
+    });
+    
+    $('#saveAppointment').on('click', function() {
+        // Aquí iría la lógica para guardar cambios
+        alert('Cambios guardados correctamente');
+        $('#cancelEdit').click();
+    });
+    
+    
+    // Manejar cambio de tipo de comprobante
+    $('#voucher_type').on('change', function() {
+        const voucherType = $(this).val();
+        toggleVoucherFields(voucherType);
+    });
+    
+    // También usar el evento nativo para mayor compatibilidad
+    const voucherSelect = document.getElementById('voucher_type');
+    if (voucherSelect) {
+        voucherSelect.addEventListener('change', function() {
+            toggleVoucherFields(this.value);
+        });
+    }
+    
+    // Verificar el estado inicial y disparar el cambio si ya hay un valor
+    setTimeout(function() {
+        const currentValue = $('#voucher_type').val();
+        if (currentValue) {
+            toggleVoucherFields(currentValue);
+        }
+    }, 100);
+    
+    // Validar RUC (11 dígitos)
+    $('#company_ruc').on('input', function() {
+        let value = $(this).val().replace(/\D/g, ''); // Solo números
+        if (value.length > 11) {
+            value = value.substring(0, 11);
+        }
+        $(this).val(value);
+    });
+    
+    // Validar DNI (8 dígitos)
+    $('#client_dni').on('input', function() {
+        let value = $(this).val().replace(/\D/g, ''); // Solo números
+        if (value.length > 8) {
+            value = value.substring(0, 8);
+        }
+        $(this).val(value);
+    });
+    
+    // Validación del formulario
+    $('#invoiceForm').on('submit', function(e) {
+        // Verificar que se haya seleccionado un paciente
+        if (!$('#patient_id').val()) {
+            e.preventDefault();
+            alert('Debe seleccionar un paciente para procesar el pago.');
+            $('#patient_id').focus();
+            return false;
+        }
+        
+        // Verificar método de pago
+        if (!$('#payment_method').val()) {
+            e.preventDefault();
+            alert('Debe seleccionar un método de pago.');
+            $('#payment_method').focus();
+            return false;
+        }
+        
+        // Verificar tipo de comprobante
+        if (!$('#voucher_type').val()) {
+            e.preventDefault();
+            alert('Debe seleccionar un tipo de comprobante.');
+            $('#voucher_type').focus();
+            return false;
+        }
+        
+        // Verificar que el total sea mayor a 0
+        const total = parseFloat($('#total_amount').val()) || 0;
+        if (total <= 0) {
+            e.preventDefault();
+            alert('No se puede procesar un pago de S/ 0.00. Verifique la información de la cita.');
+            return false;
+        }
+        
+        // Validaciones específicas por tipo de comprobante
+        const voucherType = $('#voucher_type').val();
+        if (voucherType === 'boleta') {
+            if (!$('#client_name').val().trim() || !$('#client_dni').val().trim()) {
+                e.preventDefault();
+                alert('Complete todos los campos requeridos para la boleta.');
+                return false;
+            }
+            if ($('#client_dni').val().length !== 8) {
+                e.preventDefault();
+                alert('El DNI debe tener exactamente 8 dígitos.');
+                $('#client_dni').focus();
+                return false;
+            }
+        } else if (voucherType === 'factura') {
+            if (!$('#company_name').val().trim() || !$('#company_ruc').val().trim() || !$('#company_address').val().trim()) {
+                e.preventDefault();
+                alert('Complete todos los campos requeridos para la factura.');
+                return false;
+            }
+            if ($('#company_ruc').val().length !== 11) {
+                e.preventDefault();
+                alert('El RUC debe tener exactamente 11 dígitos.');
+                $('#company_ruc').focus();
+                return false;
+            }
+        }
+        
+        // Si pasa todas las validaciones, mostrar botón de imprimir
+        $('#printVoucher').show();
+    });
+    
+    // Manejar impresión de comprobante
+    $('#printVoucher').on('click', function() {
+        const voucherType = $('#voucher_type').val();
+        const title = voucherType === 'factura' ? 'Factura' : 'Boleta de Venta';
+        
+        // Crear ventana de impresión
+        const printWindow = window.open('', '_blank', 'width=800,height=600');
+        const printContent = generatePrintContent(voucherType);
+        
+        printWindow.document.write(`
+            <html>
+                <head>
+                    <title>${title}</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; margin: 20px; }
+                        .header { text-align: center; border-bottom: 2px solid #333; padding-bottom: 10px; }
+                        .content { margin: 20px 0; }
+                        .footer { text-align: center; margin-top: 30px; font-size: 12px; }
+                        table { width: 100%; border-collapse: collapse; }
+                        th, td { padding: 8px; text-align: left; border-bottom: 1px solid #ddd; }
+                        .total { font-weight: bold; font-size: 18px; }
+                    </style>
+                </head>
+                <body>
+                    ${printContent}
+                </body>
+            </html>
+        `);
+        
+        printWindow.document.close();
+        printWindow.print();
+    });
+    
+    function generatePrintContent(voucherType) {
+        const patientName = $('#patient_id option:selected').text();
+        const paymentMethod = $('#payment_method option:selected').text();
+        const total = $('#total_amount').val();
+        const date = new Date().toLocaleDateString('es-PE');
+        
+        let clientInfo = '';
+        if (voucherType === 'boleta') {
+            clientInfo = `
+                <p><strong>Cliente:</strong> ${$('#client_name').val()}</p>
+                <p><strong>DNI:</strong> ${$('#client_dni').val()}</p>
+            `;
+        } else {
+            clientInfo = `
+                <p><strong>Razón Social:</strong> ${$('#company_name').val()}</p>
+                <p><strong>RUC:</strong> ${$('#company_ruc').val()}</p>
+                <p><strong>Dirección:</strong> ${$('#company_address').val()}</p>
+            `;
+        }
+        
+        return `
+            <div class="header">
+                <h1>CENTRO MÉDICO UNTRM</h1>
+                <h2>${voucherType === 'factura' ? 'FACTURA' : 'BOLETA DE VENTA'}</h2>
+                <p>RUC: 20123456789</p>
+            </div>
+            <div class="content">
+                <p><strong>Fecha:</strong> ${date}</p>
+                ${clientInfo}
+                <table>
+                    <tr>
+                        <th>Descripción</th>
+                        <th>Cantidad</th>
+                        <th>P. Unit.</th>
+                        <th>Total</th>
+                    </tr>
+                    <tr>
+                        <td>Consulta Médica</td>
+                        <td>1</td>
+                        <td>S/ ${total}</td>
+                        <td>S/ ${total}</td>
+                    </tr>
+                </table>
+                <p class="total">TOTAL: S/ ${total}</p>
+                <p><strong>Método de Pago:</strong> ${paymentMethod}</p>
+            </div>
+            <div class="footer">
+                <p>Gracias por su preferencia</p>
+            </div>
+        `;
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,472 @@
+{% extends "base.html" %}
+
+{% block title %}Consulta Médica - {{ patient.full_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Sidebar -->
+        <nav class="col-md-3 col-lg-2 d-md-block bg-light sidebar collapse">
+            {% include 'shared/sidebar.html' %}
+        </nav>
+
+        <!-- Main content -->
+        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                <h1 class="h2">
+                    <i class="fas fa-stethoscope me-2"></i>
+                    Consulta Médica
+                </h1>
+                <div class="btn-toolbar mb-2 mb-md-0">
+                    <div class="btn-group me-2">
+                        <a href="{{ url_for('doctor.clinical_histories') }}" class="btn btn-sm btn-outline-secondary">
+                            <i class="fas fa-arrow-left me-1"></i>
+                            Volver
+                        </a>
+                        <a href="{{ url_for('doctor.view_medical_history', patient_id=patient.id) }}" class="btn btn-sm btn-outline-info">
+                            <i class="fas fa-file-medical me-1"></i>
+                            Ver Historia Clínica
+                        </a>
+                        <!-- Botón de editar temporalmente deshabilitado -->
+                        <button class="btn btn-sm btn-warning" disabled title="Función en desarrollo">
+                            <i class="fas fa-edit me-1"></i>
+                            Editar
+                        </button>
+                        <a href="{{ url_for('doctor.print_consultation_ticket', id=medical_record.id) }}" class="btn btn-sm btn-info" target="_blank">
+                            <i class="fas fa-print me-1"></i>
+                            Imprimir Ticket
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Información del paciente -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card bg-light">
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-8">
+                                    <h6 class="mb-0">
+                                        <i class="fas fa-user me-2"></i>
+                                        Paciente: <strong>{{ patient.full_name }}</strong>
+                                        <span class="text-muted ms-2">DNI: {{ patient.dni }}</span>
+                                        <span class="text-muted ms-2">Edad: {{ patient.age }} años</span>
+                                    </h6>
+                                    {% if patient.get_medical_history() %}
+                                    <div class="mt-2">
+                                        <span class="text-muted small">
+                                            <i class="fas fa-file-medical me-1"></i>
+                                            Historia Clínica: {{ patient.get_medical_history().medical_history_number }}
+                                        </span>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                <div class="col-md-4 text-end">
+                                    {% set status = patient.get_patient_status_for_doctor() %}
+                                    <span class="badge bg-{{ status.color }} fs-6">
+                                        <i class="{{ status.icon }} me-1"></i>
+                                        {{ status.label }}
+                                    </span>
+                                    {% if medical_record.is_complete_consultation() %}
+                                    <div class="mt-2">
+                                        <span class="badge bg-success">
+                                            <i class="fas fa-check-circle me-1"></i>
+                                            Consulta Completa
+                                        </span>
+                                    </div>
+                                    {% else %}
+                                    <div class="mt-2">
+                                        <span class="badge bg-warning">
+                                            <i class="fas fa-exclamation-triangle me-1"></i>
+                                            Consulta Incompleta
+                                        </span>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ANAMNESIS -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card border-primary">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0">
+                                <i class="fas fa-clipboard-list me-2"></i>
+                                ANAMNESIS
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-4">
+                                        <h6 class="text-primary">
+                                            <i class="fas fa-question-circle me-1"></i>
+                                            Motivo de Consulta
+                                        </h6>
+                                        <div class="border p-3 bg-light">
+                                            {% if medical_record.chief_complaint %}
+                                                {{ medical_record.chief_complaint|replace('\n', '<br>')|safe }}
+                                            {% else %}
+                                                <em class="text-muted">No registrado</em>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-4">
+                                        <h6 class="text-primary">
+                                            <i class="fas fa-notes-medical me-1"></i>
+                                            Enfermedad Actual
+                                        </h6>
+                                        <div class="border p-3 bg-light">
+                                            {% if medical_record.current_illness %}
+                                                {{ medical_record.current_illness|replace('\n', '<br>')|safe }}
+                                            {% else %}
+                                                <em class="text-muted">No registrado</em>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- EXAMEN FÍSICO -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card border-info">
+                        <div class="card-header bg-info text-white">
+                            <h5 class="mb-0">
+                                <i class="fas fa-hand-holding-medical me-2"></i>
+                                EXAMEN FÍSICO
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <!-- Signos vitales -->
+                            <div class="mb-4">
+                                <h6 class="text-info mb-3">
+                                    <i class="fas fa-heartbeat me-1"></i>
+                                    Signos Vitales
+                                </h6>
+                                <div class="row">
+                                    <div class="col-md-2">
+                                        <div class="text-center border p-3">
+                                            <small class="text-muted">Presión Arterial</small>
+                                            <h5 class="text-primary mb-0">{{ medical_record.blood_pressure or 'N/A' }}</h5>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <div class="text-center border p-3">
+                                            <small class="text-muted">FC (lpm)</small>
+                                            <h5 class="text-primary mb-0">{{ medical_record.heart_rate or 'N/A' }}</h5>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <div class="text-center border p-3">
+                                            <small class="text-muted">Temperatura (°C)</small>
+                                            <h5 class="text-primary mb-0">{{ medical_record.temperature or 'N/A' }}</h5>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <div class="text-center border p-3">
+                                            <small class="text-muted">FR (rpm)</small>
+                                            <h5 class="text-primary mb-0">{{ medical_record.respiratory_rate or 'N/A' }}</h5>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <div class="text-center border p-3">
+                                            <small class="text-muted">Peso (kg)</small>
+                                            <h5 class="text-primary mb-0">{{ medical_record.weight or 'N/A' }}</h5>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <div class="text-center border p-3">
+                                            <small class="text-muted">Talla (cm)</small>
+                                            <h5 class="text-primary mb-0">{{ medical_record.height or 'N/A' }}</h5>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- IMC -->
+                                {% if medical_record.bmi %}
+                                <div class="row mt-3">
+                                    <div class="col-md-3">
+                                        <div class="text-center border p-3 bg-light">
+                                            <small class="text-muted">Índice de Masa Corporal</small>
+                                            <h4 class="text-success mb-0">{{ medical_record.bmi }}</h4>
+                                            <small class="text-muted">{{ medical_record.bmi_category }}</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Examen físico detallado -->
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <h6 class="text-info">
+                                            <i class="fas fa-eye me-1"></i>
+                                            Examen Físico General
+                                        </h6>
+                                        <div class="border p-3 bg-light">
+                                            {% if medical_record.general_examination %}
+                                                {{ medical_record.general_examination|replace('\n', '<br>')|safe }}
+                                            {% else %}
+                                                <em class="text-muted">No registrado</em>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <h6 class="text-info">
+                                            <i class="fas fa-list-alt me-1"></i>
+                                            Examen por Sistemas
+                                        </h6>
+                                        <div class="border p-3 bg-light">
+                                            {% if medical_record.systemic_examination %}
+                                                {{ medical_record.systemic_examination|replace('\n', '<br>')|safe }}
+                                            {% else %}
+                                                <em class="text-muted">No registrado</em>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <h6 class="text-info">
+                                            <i class="fas fa-search me-1"></i>
+                                            Examen Regional
+                                        </h6>
+                                        <div class="border p-3 bg-light">
+                                            {% if medical_record.regional_examination %}
+                                                {{ medical_record.regional_examination|replace('\n', '<br>')|safe }}
+                                            {% else %}
+                                                <em class="text-muted">No registrado</em>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DIAGNÓSTICO Y PLAN -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card border-success">
+                        <div class="card-header bg-success text-white">
+                            <h5 class="mb-0">
+                                <i class="fas fa-diagnosis me-2"></i>
+                                DIAGNÓSTICO Y PLAN
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-4">
+                                        <h6 class="text-success">
+                                            <i class="fas fa-stethoscope me-1"></i>
+                                            Diagnóstico
+                                        </h6>
+                                        <div class="border p-3 bg-light">
+                                            {% if medical_record.diagnosis %}
+                                                {{ medical_record.diagnosis|replace('\n', '<br>')|safe }}
+                                            {% else %}
+                                                <em class="text-muted">No registrado</em>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mb-4">
+                                        <h6 class="text-info">
+                                            <i class="fas fa-vials me-1"></i>
+                                            Exámenes Auxiliares
+                                        </h6>
+                                        <div class="border p-3 bg-light">
+                                            {% if medical_record.auxiliary_exams %}
+                                                {{ medical_record.auxiliary_exams|replace('\n', '<br>')|safe }}
+                                            {% else %}
+                                                <em class="text-muted">No registrado</em>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-4">
+                                        <h6 class="text-warning">
+                                            <i class="fas fa-prescription me-1"></i>
+                                            Tratamiento Prescrito
+                                        </h6>
+                                        <div class="border p-3 bg-light">
+                                            {% if medical_record.treatment %}
+                                                {{ medical_record.treatment|replace('\n', '<br>')|safe }}
+                                            {% else %}
+                                                <em class="text-muted">No registrado</em>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mb-4">
+                                        <h6 class="text-warning">
+                                            <i class="fas fa-pills me-1"></i>
+                                            Medicamentos Recetados
+                                        </h6>
+                                        <div class="border p-3 bg-light">
+                                            {% if medical_record.prescriptions %}
+                                                {{ medical_record.prescriptions|replace('\n', '<br>')|safe }}
+                                            {% else %}
+                                                <em class="text-muted">No registrado</em>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <h6 class="text-primary">
+                                            <i class="fas fa-clipboard-check me-1"></i>
+                                            Indicaciones y Recomendaciones
+                                        </h6>
+                                        <div class="border p-3 bg-light">
+                                            {% if medical_record.recommendations %}
+                                                {{ medical_record.recommendations|replace('\n', '<br>')|safe }}
+                                            {% else %}
+                                                <em class="text-muted">No registrado</em>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <h6 class="text-info">
+                                            <i class="fas fa-calendar-plus me-1"></i>
+                                            Próxima Cita
+                                        </h6>
+                                        <div class="border p-3 bg-light">
+                                            {% if medical_record.next_appointment_date %}
+                                                <strong>{{ medical_record.next_appointment_date.strftime('%d/%m/%Y') }}</strong>
+                                            {% else %}
+                                                <em class="text-muted">No programada</em>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DATOS ADMINISTRATIVOS -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card border-secondary">
+                        <div class="card-header bg-secondary text-white">
+                            <h5 class="mb-0">
+                                <i class="fas fa-clipboard-user me-2"></i>
+                                DATOS ADMINISTRATIVOS
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <dl class="row">
+                                        <dt class="col-sm-5">Fecha y Hora de Atención:</dt>
+                                        <dd class="col-sm-7">{{ medical_record.consultation_date.strftime('%d/%m/%Y %H:%M') }}</dd>
+                                        
+                                        <dt class="col-sm-5">Médico Tratante:</dt>
+                                        <dd class="col-sm-7">{{ medical_record.doctor.full_name if medical_record.doctor else 'N/A' }}</dd>
+                                        
+                                        <dt class="col-sm-5">Especialidad:</dt>
+                                        <dd class="col-sm-7">{{ medical_record.get_doctor_specialty() }}</dd>
+                                        
+                                        <dt class="col-sm-5">CMP:</dt>
+                                        <dd class="col-sm-7">{{ medical_record.doctor.cmp_number if medical_record.doctor and medical_record.doctor.cmp_number else 'No especificado' }}</dd>
+                                    </dl>
+                                </div>
+                                <div class="col-md-6">
+                                    <dl class="row">
+                                        <dt class="col-sm-5">Creado:</dt>
+                                        <dd class="col-sm-7">{{ medical_record.created_at.strftime('%d/%m/%Y %H:%M') }}</dd>
+                                        
+                                        <dt class="col-sm-5">Última Modificación:</dt>
+                                        <dd class="col-sm-7">{{ medical_record.updated_at.strftime('%d/%m/%Y %H:%M') }}</dd>
+                                        
+                                        <dt class="col-sm-5">Estado:</dt>
+                                        <dd class="col-sm-7">
+                                            {% if medical_record.is_complete_consultation() %}
+                                                <span class="badge bg-success">Completa</span>
+                                            {% else %}
+                                                <span class="badge bg-warning">Incompleta</span>
+                                            {% endif %}
+                                        </dd>
+                                        
+                                        <dt class="col-sm-5">Es Primera Consulta:</dt>
+                                        <dd class="col-sm-7">
+                                            {% if medical_record.is_first_consultation_for_patient() %}
+                                                <span class="badge bg-primary">Sí</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">No</span>
+                                            {% endif %}
+                                        </dd>
+                                    </dl>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- OBSERVACIONES ADICIONALES -->
+            {% if medical_record.additional_observations %}
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card border-warning">
+                        <div class="card-header bg-warning text-dark">
+                            <h5 class="mb-0">
+                                <i class="fas fa-sticky-note me-2"></i>
+                                OBSERVACIONES ADICIONALES
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="border p-3 bg-light">
+                                {{ medical_record.additional_observations|replace('\n', '<br>')|safe }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+        </main>
+    </div>
+</div>
+
+<style>
+@media print {
+    .sidebar, .btn-toolbar, .no-print {
+        display: none !important;
+    }
+    .col-md-9 {
+        width: 100% !important;
+    }
+    .card {
+        break-inside: avoid;
+        page-break-inside: avoid;
+    }
+}
+</style>
+{% endblock %}

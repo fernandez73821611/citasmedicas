@@ -1,0 +1,249 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>
+        <i class="fas fa-clock"></i> {{ title }}
+    </h2>
+    <div>
+        <button class="btn btn-info" data-bs-toggle="modal" data-bs-target="#helpModal">
+            <i class="fas fa-question-circle"></i> Ayuda
+        </button>
+    </div>
+</div>
+
+<!-- Información de configuración -->
+<div class="alert alert-info mb-4">
+    <h6><i class="fas fa-info-circle"></i> Gestión de Horarios de Atención</h6>
+    <p class="mb-0">Configure los horarios de trabajo para cada doctor, incluyendo días de trabajo, horarios de atención, descansos y límites de pacientes por día.</p>
+</div>
+
+<!-- Resumen general -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card border-primary">
+            <div class="card-body text-center">
+                <i class="fas fa-user-md fa-2x text-primary mb-2"></i>
+                <h5 class="card-title">{{ metrics.total_doctors }}</h5>
+                <p class="card-text">Doctores Activos</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-success">
+            <div class="card-body text-center">
+                <i class="fas fa-calendar-check fa-2x text-success mb-2"></i>
+                <h5 class="card-title">{{ metrics.total_schedules }}</h5>
+                <p class="card-text">Horarios Configurados</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-warning">
+            <div class="card-body text-center">
+                <i class="fas fa-exclamation-triangle fa-2x text-warning mb-2"></i>
+                <h5 class="card-title">{{ metrics.doctors_without_schedule }}</h5>
+                <p class="card-text">Sin Horarios</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-info">
+            <div class="card-body text-center">
+                <i class="fas fa-stethoscope fa-2x text-info mb-2"></i>
+                <h5 class="card-title">{{ metrics.total_specialties }}</h5>
+                <p class="card-text">Especialidades</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Lista de doctores y sus horarios -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">
+            <i class="fas fa-users"></i> Doctores y Horarios de Trabajo
+        </h5>
+    </div>
+    <div class="card-body">
+        {% if doctors %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Doctor</th>
+                            <th>Especialidad Principal</th>
+                            <th>Horarios Configurados</th>
+                            <th>Fecha Inicio</th>
+                            <th>Fecha Fin</th>
+                            <th class="text-center">Estado</th>
+                            <th class="text-center">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for doctor in doctors %}
+                        <tr>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="avatar-sm bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3">
+                                        <i class="fas fa-user-md"></i>
+                                    </div>
+                                    <div>
+                                        <strong>Dr. {{ doctor.full_name }}</strong><br>
+                                        <small class="text-muted">{{ doctor.email }}</small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                {% if doctor.specialty %}
+                                    <span class="badge bg-info">{{ doctor.specialty.name }}</span>
+                                {% else %}
+                                    <span class="text-muted">Sin especialidad</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% set schedules = doctor_schedules.get(doctor.id, []) %}
+                                {% if schedules %}
+                                    <div class="schedule-summary">
+                                        {% for schedule in schedules[:3] %}
+                                            <small class="d-block mb-1">
+                                                <i class="fas fa-calendar"></i> {{ schedule.day_name_short }}: {{ schedule.time_range }}
+                                                {% if schedule.specialty %}
+                                                    <span class="badge bg-secondary badge-sm">{{ schedule.specialty.name }}</span>
+                                                {% endif %}
+                                            </small>
+                                        {% endfor %}
+                                        {% if schedules|length > 3 %}
+                                            <small class="text-muted">+{{ schedules|length - 3 }} más...</small>
+                                        {% endif %}
+                                    </div>
+                                {% else %}
+                                    <span class="text-warning">
+                                        <i class="fas fa-exclamation-triangle"></i> Sin horarios configurados
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                {% set first_schedule = schedules[0] if schedules else None %}
+                                {% if first_schedule and first_schedule.start_date %}
+                                    <small class="text-muted">
+                                        <i class="fas fa-calendar-plus"></i> {{ first_schedule.start_date.strftime('%d/%m/%Y') }}
+                                    </small>
+                                {% else %}
+                                    <small class="text-muted">No definida</small>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                {% if first_schedule and first_schedule.end_date %}
+                                    <small class="text-muted">
+                                        <i class="fas fa-calendar-minus"></i> {{ first_schedule.end_date.strftime('%d/%m/%Y') }}
+                                    </small>
+                                {% else %}
+                                    <small class="text-muted">Sin límite</small>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                {% set has_active_schedules = schedules|selectattr('is_active')|list|length > 0 %}
+                                {% if has_active_schedules %}
+                                    <span class="badge bg-success">Activo</span>
+                                {% else %}
+                                    <span class="badge bg-warning">Inactivo</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <a href="{{ url_for('admin.doctor_schedule_detail', doctor_id=doctor.id) }}" 
+                                       class="btn btn-outline-primary" title="Ver detalles">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    <a href="{{ url_for('admin.create_work_schedule', doctor_id=doctor.id) }}" 
+                                       class="btn btn-outline-success" title="Nuevo horario">
+                                        <i class="fas fa-plus"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="text-center py-4">
+                <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">No hay doctores registrados</h5>
+                <p class="text-muted">Agregue doctores para configurar sus horarios de trabajo.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Modal de ayuda -->
+<div class="modal fade" id="helpModal" tabindex="-1" aria-labelledby="helpModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="helpModalLabel">
+                    <i class="fas fa-question-circle"></i> Ayuda - Gestión de Horarios
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <h6><i class="fas fa-info-circle text-primary"></i> ¿Qué puedo hacer aquí?</h6>
+                <ul>
+                    <li><strong>Ver horarios:</strong> Consulte todos los horarios configurados para cada doctor</li>
+                    <li><strong>Crear horarios:</strong> Configure nuevos horarios de trabajo por día y especialidad</li>
+                    <li><strong>Editar horarios:</strong> Modifique horarios existentes, incluyendo descansos y límites</li>
+                    <li><strong>Gestionar disponibilidad:</strong> Active/desactive horarios según necesidades</li>
+                </ul>
+                
+                <h6><i class="fas fa-lightbulb text-warning"></i> Consejos importantes:</h6>
+                <ul>
+                    <li>Configure horarios realistas considerando la duración típica de consultas</li>
+                    <li>Incluya tiempo de descanso para el almuerzo y pausas</li>
+                    <li>Establezca límites de pacientes por día para evitar sobrecarga</li>
+                    <li>Los horarios por especialidad permiten mayor flexibilidad</li>
+                    <li>Los cambios afectan solo citas futuras, no las ya programadas</li>
+                </ul>
+                
+                <h6><i class="fas fa-cog text-info"></i> Configuraciones avanzadas:</h6>
+                <ul>
+                    <li><strong>Duración de citas:</strong> Configure tiempo estándar por especialidad</li>
+                    <li><strong>Horarios especiales:</strong> Cree horarios específicos por especialidad</li>
+                    <li><strong>Excepciones:</strong> Marque días no disponibles o con horarios especiales</li>
+                </ul>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.avatar-sm {
+    width: 40px;
+    height: 40px;
+    font-size: 1rem;
+}
+
+.schedule-summary {
+    max-width: 250px;
+}
+
+.badge-sm {
+    font-size: 0.7em;
+}
+
+.table th {
+    border-top: none;
+    font-weight: 600;
+}
+
+.card {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    border: 1px solid rgba(0, 0, 0, 0.125);
+}
+</style>
+{% endblock %}

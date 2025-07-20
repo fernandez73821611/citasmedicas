@@ -1,0 +1,251 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        {% include 'shared/sidebar.html' %}
+        
+        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                <h1 class="h2">{{ title }}</h1>
+                <div class="btn-toolbar mb-2 mb-md-0">
+                    <div class="btn-group me-2">
+                        <a href="{{ url_for('admin.patients') }}" class="btn btn-sm btn-outline-secondary">
+                            <i class="bi bi-arrow-left"></i> Volver a la Lista
+                        </a>
+                        <a href="{{ url_for('admin.edit_patient', id=patient.id) }}" class="btn btn-sm btn-outline-warning">
+                            <i class="bi bi-pencil"></i> Editar Paciente
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Información del Paciente -->
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="card-title mb-0">
+                                <i class="bi bi-person"></i> Información Personal
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-12 mb-2">
+                                    <strong>Nombre Completo:</strong><br>
+                                    {{ patient.first_name }} {{ patient.last_name }}
+                                </div>                                <div class="col-12 mb-2">
+                                    <strong>Documento:</strong><br>
+                                    DNI: {{ patient.dni }}
+                                </div>
+                                <div class="col-12 mb-2">
+                                    <strong>Fecha de Nacimiento:</strong><br>
+                                    {{ patient.birth_date|dateformat }}
+                                </div>
+                                <div class="col-12 mb-2">
+                                    <strong>Género:</strong><br>
+                                    <span class="badge bg-{{ 'primary' if patient.gender == 'Masculino' else 'danger' if patient.gender == 'Femenino' else 'secondary' }}">
+                                        {{ patient.gender }}
+                                    </span>
+                                </div>
+                                <div class="col-12 mb-2">
+                                    <strong>Estado Civil:</strong><br>
+                                    {{ patient.marital_status or 'No especificado' }}
+                                </div>                                <div class="col-12 mb-2">
+                                    <strong>Estado:</strong><br>
+                                    <span class="badge bg-success">Activo</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header bg-info text-white">
+                            <h5 class="card-title mb-0">
+                                <i class="bi bi-telephone"></i> Contacto
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-12 mb-2">
+                                    <strong>Teléfono:</strong><br>
+                                    {{ patient.phone or 'No registrado' }}
+                                </div>
+                                <div class="col-12 mb-2">
+                                    <strong>Email:</strong><br>
+                                    {{ patient.email or 'No registrado' }}
+                                </div>
+                                <div class="col-12 mb-2">
+                                    <strong>Dirección:</strong><br>
+                                    {{ patient.address or 'No registrada' }}
+                                </div>
+                                <div class="col-12 mb-2">
+                                    <strong>Contacto de Emergencia:</strong><br>
+                                    {{ patient.emergency_contact or 'No registrado' }}
+                                </div>
+                                <div class="col-12 mb-2">
+                                    <strong>Teléfono de Emergencia:</strong><br>
+                                    {{ patient.emergency_phone or 'No registrado' }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header bg-success text-white">
+                            <h5 class="card-title mb-0">
+                                <i class="bi bi-heart-pulse"></i> Información Médica
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-12 mb-2">
+                                    <strong>Tipo de Sangre:</strong><br>
+                                    {{ patient.blood_type or 'No especificado' }}
+                                </div>
+                                <div class="col-12 mb-2">
+                                    <strong>Alergias:</strong><br>
+                                    {{ patient.allergies or 'Ninguna registrada' }}
+                                </div>
+                                <div class="col-12 mb-2">
+                                    <strong>Registrado:</strong><br>
+                                    {{ patient.created_at|datetimeformat }}
+                                </div>
+                                <div class="col-12 mb-2">
+                                    <strong>Última Actualización:</strong><br>
+                                    {{ patient.updated_at|datetimeformat }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Citas del Paciente -->
+            <div class="row mt-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="bi bi-calendar-check"></i> Historial de Citas
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            {% if appointments %}
+                                <div class="table-responsive">
+                                    <table class="table table-striped">
+                                        <thead>
+                                            <tr>
+                                                <th>Fecha</th>
+                                                <th>Hora</th>
+                                                <th>Médico</th>
+                                                <th>Especialidad</th>
+                                                <th>Estado</th>
+                                                <th>Observaciones</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for appointment in appointments %}
+                                            <tr>
+                                                <td>{{ appointment.date_time|dateformat }}</td>
+                                                <td>{{ appointment.date_time|dateformat('%H:%M') }}</td>
+                                                <td>
+                                                    {% if appointment.doctor %}
+                                                        Dr. {{ appointment.doctor.first_name }} {{ appointment.doctor.last_name }}
+                                                    {% else %}
+                                                        No asignado
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    {% if appointment.specialty %}
+                                                        {{ appointment.specialty.name }}
+                                                    {% else %}
+                                                        No especificada
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    <span class="badge bg-{{ 'success' if appointment.status == 'completed' else 'warning' if appointment.status == 'scheduled' else 'danger' }}">
+                                                        {{ appointment.status|title }}
+                                                    </span>
+                                                </td>
+                                                <td>{{ appointment.notes or '-' }}</td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            {% else %}
+                                <div class="text-center py-3">
+                                    <i class="bi bi-calendar-x display-4 text-muted"></i>
+                                    <p class="text-muted mt-2">No hay citas registradas para este paciente.</p>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Historial Médico -->
+            <div class="row mt-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="bi bi-file-medical"></i> Historial Médico
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            {% if medical_records %}
+                                {% for record in medical_records %}
+                                <div class="card mb-3">
+                                    <div class="card-header d-flex justify-content-between">
+                                        <div>
+                                            <strong>{{ record.diagnosis }}</strong>
+                                            {% if record.doctor %}
+                                                - Dr. {{ record.doctor.first_name }} {{ record.doctor.last_name }}
+                                            {% endif %}
+                                        </div>
+                                        <small class="text-muted">{{ record.created_at|datetimeformat }}</small>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <strong>Síntomas:</strong>
+                                                <p>{{ record.symptoms or 'No especificados' }}</p>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <strong>Tratamiento:</strong>
+                                                <p>{{ record.treatment or 'No especificado' }}</p>
+                                            </div>
+                                        </div>
+                                        {% if record.notes %}
+                                        <div class="row">
+                                            <div class="col-12">
+                                                <strong>Observaciones:</strong>
+                                                <p>{{ record.notes }}</p>
+                                            </div>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <div class="text-center py-3">
+                                    <i class="bi bi-file-medical display-4 text-muted"></i>
+                                    <p class="text-muted mt-2">No hay registros médicos para este paciente.</p>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ title or 'Reporte Administrativo' }}</title>
+    <style>
+        body { font-family: Arial, sans-serif; font-size: 13px; margin: 30px; }
+        h1, h2, h3 { color: #1a237e; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        th, td { border: 1px solid #bbb; padding: 6px 8px; text-align: left; }
+        th { background: #e3e6f3; }
+        .section { margin-bottom: 30px; }
+        .subtitle { font-size: 1.1em; color: #333; margin-bottom: 8px; }
+        .totals { background: #f5f5f5; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>Reporte Administrativo</h1>
+    <p><strong>Período:</strong> {{ start_date.strftime('%d/%m/%Y') }} - {{ end_date.strftime('%d/%m/%Y') }}</p>
+
+    <div class="section">
+        <h2>Resumen General</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Total Pacientes</th>
+                    <th>Activos</th>
+                    <th>Total Citas</th>
+                    <th>Completadas</th>
+                    <th>Total Doctores</th>
+                    <th>Registros Médicos</th>
+                    <th>Nuevos Pacientes</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>{{ stats.total_patients }}</td>
+                    <td>{{ stats.active_patients }}</td>
+                    <td>{{ stats.total_appointments }}</td>
+                    <td>{{ stats.completed_appointments }}</td>
+                    <td>{{ stats.total_doctors }}</td>
+                    <td>{{ stats.medical_records }}</td>
+                    <td>{{ stats.new_patients }}</td>
+                </tr>
+            </tbody>
+        </table>
+        <table>
+            <thead>
+                <tr>
+                    <th>Tasa de Completado</th>
+                    <th>Tasa de Cancelación</th>
+                    <th>Tasa de Ausencias</th>
+                    <th>Citas Canceladas</th>
+                    <th>Citas Ausentes</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>{{ stats.completion_rate }}%</td>
+                    <td>{{ stats.cancellation_rate }}%</td>
+                    <td>{{ stats.no_show_rate }}%</td>
+                    <td>{{ stats.cancelled_appointments }}</td>
+                    <td>{{ stats.no_show_appointments }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="section">
+        <h2>Estadísticas por Especialidad</h2>
+        <table>
+            <thead>
+                <tr><th>Especialidad</th><th>Cantidad de citas</th></tr>
+            </thead>
+            <tbody>
+                {% for specialty, count in specialty_stats.items() %}
+                <tr><td>{{ specialty }}</td><td>{{ count }}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="section">
+        <h2>Estadísticas por Doctor</h2>
+        <table>
+            <thead>
+                <tr><th>Doctor</th><th>Cantidad de citas</th></tr>
+            </thead>
+            <tbody>
+                {% for doctor, count in doctor_stats.items() %}
+                <tr><td>{{ doctor }}</td><td>{{ count }}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="section">
+        <h2>Estadísticas Mensuales (últimos 12 meses)</h2>
+        <table>
+            <thead>
+                <tr><th>Mes</th><th>Citas</th></tr>
+            </thead>
+            <tbody>
+                {% for mes, cantidad in monthly_stats.items() %}
+                <tr><td>{{ mes }}</td><td>{{ cantidad }}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <footer>
+        <hr>
+        <small>Generado el {{ (now() if now else namespace().now).strftime('%d/%m/%Y %H:%M') if callable(now) or now else '' }}</small>
+    </footer>
+</body>
+</html>

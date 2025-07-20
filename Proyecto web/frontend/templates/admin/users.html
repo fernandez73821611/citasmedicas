@@ -1,0 +1,1129 @@
+{% extends "base.html" %}
+
+{% block title %}Gestión de Usuarios - Sistema de Gestión Médica{% endblock %}
+
+{% block content %}
+<!-- Mensajes Flash -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ 'danger' if category == 'error' else 'success' }} alert-dismissible fade show" role="alert">
+                <i class="bi bi-{{ 'exclamation-triangle' if category == 'error' else 'check-circle' }}"></i>
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">
+        <i class="bi bi-people"></i> Gestión de Usuarios
+    </h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addUserModal">
+            <i class="bi bi-person-plus"></i> Agregar Usuario
+        </button>
+    </div>
+</div>
+
+<!-- Filtros -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-search"></i></span>
+            <input type="text" class="form-control" placeholder="Buscar usuario..." id="searchUser">
+        </div>
+    </div>
+    <div class="col-md-3">
+        <select class="form-select" id="filterRole">
+            <option value="">Todos los roles</option>
+            <option value="admin">Administrador</option>
+            <option value="doctor">Médico</option>
+            <option value="receptionist">Recepcionista</option>
+            <option value="nurse">Enfermera</option>
+        </select>
+    </div>
+    <div class="col-md-3">
+        <select class="form-select" id="filterStatus">
+            <option value="">Todos los estados</option>
+            <option value="active">Activo</option>
+            <option value="inactive">Inactivo</option>
+        </select>
+    </div>
+</div>
+
+<!-- Tabla de usuarios -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">Lista de Usuarios del Sistema</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th>ID</th>
+                        <th>Usuario</th>
+                        <th>Nombre Completo</th>
+                        <th>Email</th>
+                        <th>Rol</th>
+                        <th>Especialidad</th>
+                        <th>Estado</th>
+                        <th>Fecha Registro</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                    <tr data-role="{{ user.role }}">
+                        <td>{{ user.id }}</td>
+                        <td>
+                            <strong>{{ user.username }}</strong>
+                        </td>
+                        <td>{{ user.full_name }}</td>
+                        <td>{{ user.email }}</td>
+                        <td>
+                            {% if user.role == 'admin' %}
+                                <span class="badge bg-danger">Administrador</span>
+                            {% elif user.role == 'doctor' %}
+                                <span class="badge bg-primary">Médico</span>
+                            {% elif user.role == 'receptionist' %}
+                                <span class="badge bg-success">Recepcionista</span>
+                            {% elif user.role == 'nurse' %}
+                                <span class="badge bg-info">Enfermera</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if user.role == 'doctor' and user.specialty %}
+                                <span class="badge bg-light text-dark" title="{{ user.specialty.description }}">
+                                    <i class="bi bi-heart-pulse"></i> {{ user.specialty.name }}
+                                </span>
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if user.is_active %}
+                                <span class="badge bg-success">Activo</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Inactivo</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ user.created_at.strftime('%d/%m/%Y') }}</td>
+                        <td>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <button type="button" class="btn btn-outline-info" title="Ver Detalles" 
+                                        onclick="viewUser({{ user.id }}, '{{ user.username }}', '{{ user.email }}', '{{ user.first_name }}', '{{ user.last_name }}', '{{ user.phone or '' }}', '{{ user.role }}', '{{ user.specialty.name if user.specialty else '' }}', '{{ user.created_at.strftime('%d/%m/%Y %H:%M') }}', '{{ user.updated_at.strftime('%d/%m/%Y %H:%M') if user.updated_at else '' }}', {{ user.is_active|lower }})">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                                <button type="button" class="btn btn-outline-primary" title="Editar" 
+                                        onclick="editUser({{ user.id }}, '{{ user.username }}', '{{ user.email }}', '{{ user.first_name }}', '{{ user.last_name }}', '{{ user.phone or '' }}', '{{ user.role }}', '{{ user.specialty_id or '' }}')">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                {% if user.id != current_user.id %}
+                                    {% if user.is_active %}
+                                        <button type="button" class="btn btn-outline-warning" title="Desactivar"
+                                                onclick="toggleUserStatus({{ user.id }}, false)">
+                                            <i class="bi bi-pause"></i>
+                                        </button>
+                                    {% else %}
+                                        <button type="button" class="btn btn-outline-success" title="Activar"
+                                                onclick="toggleUserStatus({{ user.id }}, true)">
+                                            <i class="bi bi-play"></i>
+                                        </button>
+                                    {% endif %}
+                                    <button type="button" class="btn btn-outline-danger" title="Eliminar"
+                                            onclick="deleteUser({{ user.id }}, '{{ user.username }}')">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para agregar usuario -->
+<div class="modal fade" id="addUserModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-person-plus"></i> Agregar Nuevo Usuario
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>            <form method="POST" action="{{ url_for('admin.add_user') }}" id="addUserForm" class="needs-validation" novalidate>
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i> 
+                        <strong>Nuevo Usuario:</strong> Complete todos los campos obligatorios para crear un nuevo usuario del sistema.
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="username" class="form-label">Usuario *</label>
+                                <input type="text" class="form-control" id="username" name="username" required 
+                                       minlength="3" maxlength="50" pattern="^[a-zA-Z0-9._-]+$"
+                                       oninput="restrictUsername(this)" onpaste="handleUsernamePaste(event)">
+                                <div class="invalid-feedback">
+                                    El usuario debe tener entre 3-50 caracteres y solo puede contener letras, números, puntos, guiones y guiones bajos.
+                                </div>
+                                <div class="valid-feedback">
+                                    ¡Usuario válido!
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="email" class="form-label">Email *</label>
+                                <input type="email" class="form-control" id="email" name="email" required maxlength="100"
+                                       oninput="restrictEmail(this)" onpaste="handleEmailPaste(event)">
+                                <div class="invalid-feedback">
+                                    Por favor ingrese un email válido.
+                                </div>
+                                <div class="valid-feedback">
+                                    ¡Email válido!
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="first_name" class="form-label">Nombre *</label>
+                                <input type="text" class="form-control" id="first_name" name="first_name" required 
+                                       minlength="2" maxlength="50" pattern="^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$"
+                                       oninput="restrictName(this)" onpaste="handleNamePaste(event)">
+                                <div class="invalid-feedback">
+                                    El nombre debe tener entre 2-50 caracteres y solo puede contener letras y espacios.
+                                </div>
+                                <div class="valid-feedback">
+                                    ¡Nombre válido!
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="last_name" class="form-label">Apellido *</label>
+                                <input type="text" class="form-control" id="last_name" name="last_name" required 
+                                       minlength="2" maxlength="50" pattern="^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$"
+                                       oninput="restrictName(this)" onpaste="handleNamePaste(event)">
+                                <div class="invalid-feedback">
+                                    El apellido debe tener entre 2-50 caracteres y solo puede contener letras y espacios.
+                                </div>
+                                <div class="valid-feedback">
+                                    ¡Apellido válido!
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="phone" class="form-label">Teléfono</label>
+                                <input type="text" class="form-control" id="phone" name="phone" 
+                                       maxlength="9" pattern="^[0-9]{9}$" placeholder="999888777"
+                                       oninput="restrictPhone(this)" onpaste="handlePhonePaste(event)">
+                                <div class="invalid-feedback">
+                                    El teléfono debe tener exactamente 9 dígitos.
+                                </div>
+                                <div class="valid-feedback">
+                                    ¡Teléfono válido!
+                                </div>
+                                <div class="form-text">
+                                    <small>Ingrese exactamente 9 dígitos (solo números)</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="role" class="form-label">Rol *</label>
+                                <select class="form-select" id="role" name="role" required onchange="toggleSpecialtyField()">
+                                    <option value="">Seleccionar rol...</option>
+                                    <option value="admin">Administrador</option>
+                                    <option value="doctor">Médico</option>
+                                    <option value="receptionist">Recepcionista</option>
+                                    <option value="nurse">Enfermera</option>
+                                </select>
+                                <div class="invalid-feedback">
+                                    Por favor seleccione un rol.
+                                </div>
+                                <div class="valid-feedback">
+                                    ¡Rol seleccionado!
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Campo de Especialidad (solo para médicos) -->
+                    <div class="row" id="specialtyRow" style="display: none;">
+                        <div class="col-md-12">
+                            <div class="mb-3">
+                                <label for="specialty_id" class="form-label">
+                                    Especialidad Médica *
+                                    <small class="text-muted">(Requerido para médicos)</small>
+                                </label>
+                                <select class="form-select" id="specialty_id" name="specialty_id">
+                                    <option value="">Seleccionar especialidad...</option>
+                                    {% for specialty in specialties %}
+                                        {% if specialty.is_active %}
+                                            <option value="{{ specialty.id }}">
+                                                {{ specialty.name }}
+                                                {% if specialty.description %}
+                                                    - {{ specialty.description[:50] }}{% if specialty.description|length > 50 %}...{% endif %}
+                                                {% endif %}
+                                            </option>
+                                        {% endif %}
+                                    {% endfor %}
+                                </select>
+                                <div class="invalid-feedback">
+                                    Por favor seleccione una especialidad médica.
+                                </div>
+                                <div class="valid-feedback">
+                                    ¡Especialidad seleccionada!
+                                </div>
+                                <div class="form-text">
+                                    <i class="bi bi-info-circle"></i> 
+                                    Seleccione la especialidad principal del médico. Esto determinará el precio y duración de las consultas.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Contraseña *</label>
+                        <div class="input-group">
+                            <input type="password" class="form-control" id="password" name="password" required 
+                                   minlength="6" maxlength="100">
+                            <button class="btn btn-outline-secondary" type="button" id="togglePassword">
+                                <i class="bi bi-eye" id="togglePasswordIcon"></i>
+                            </button>
+                        </div>
+                        <div class="invalid-feedback">
+                            La contraseña debe tener al menos 6 caracteres.
+                        </div>
+                        <div class="valid-feedback">
+                            ¡Contraseña válida!
+                        </div>
+                        <div class="form-text">
+                            <small>Mínimo 6 caracteres. Se recomienda usar letras, números y símbolos.</small>
+                        </div>
+                    </div>
+                </div>                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-person-plus"></i> Crear Usuario
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para visualizar detalles del usuario -->
+<div class="modal fade" id="viewUserModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title">
+                    <i class="bi bi-eye"></i> Detalles del Usuario
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card border-0 bg-light mb-3">
+                            <div class="card-header bg-primary text-white">
+                                <h6 class="mb-0"><i class="bi bi-person"></i> Información Personal</h6>
+                            </div>
+                            <div class="card-body">
+                                <table class="table table-borderless">
+                                    <tr>
+                                        <td><strong>ID:</strong></td>
+                                        <td id="viewUserId">-</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Usuario:</strong></td>
+                                        <td id="viewUserUsername">-</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Nombre Completo:</strong></td>
+                                        <td id="viewUserFullName">-</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Email:</strong></td>
+                                        <td id="viewUserEmail">-</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Teléfono:</strong></td>
+                                        <td id="viewUserPhone">-</td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card border-0 bg-light mb-3">
+                            <div class="card-header bg-success text-white">
+                                <h6 class="mb-0"><i class="bi bi-briefcase"></i> Información Profesional</h6>
+                            </div>
+                            <div class="card-body">
+                                <table class="table table-borderless">
+                                    <tr>
+                                        <td><strong>Rol:</strong></td>
+                                        <td id="viewUserRole">-</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Especialidad:</strong></td>
+                                        <td id="viewUserSpecialty">-</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Estado:</strong></td>
+                                        <td id="viewUserStatus">-</td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-12">
+                        <div class="card border-0 bg-light">
+                            <div class="card-header bg-warning text-dark">
+                                <h6 class="mb-0"><i class="bi bi-clock-history"></i> Información del Sistema</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <p><strong>Fecha de Registro:</strong></p>
+                                        <p class="text-muted" id="viewUserCreated">-</p>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <p><strong>Última Actualización:</strong></p>
+                                        <p class="text-muted" id="viewUserUpdated">-</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="bi bi-x-circle"></i> Cerrar
+                </button>
+                <button type="button" class="btn btn-primary" id="editFromViewBtn">
+                    <i class="bi bi-pencil"></i> Editar Usuario
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Función para mostrar/ocultar campo de especialidad
+function toggleSpecialtyField() {
+    const roleSelect = document.getElementById('role');
+    const specialtyRow = document.getElementById('specialtyRow');
+    const specialtySelect = document.getElementById('specialty_id');
+    
+    if (roleSelect.value === 'doctor') {
+        specialtyRow.style.display = 'block';
+        specialtySelect.required = true;
+    } else {
+        specialtyRow.style.display = 'none';
+        specialtySelect.required = false;
+        specialtySelect.value = ''; // Limpiar selección
+    }
+}
+
+// Función para limpiar el formulario de agregar usuario
+function clearAddUserForm() {
+    document.getElementById('addUserForm').reset();
+    document.getElementById('specialtyRow').style.display = 'none';
+    document.getElementById('specialty_id').required = false;
+}
+
+// Event listener para limpiar el formulario cuando se abre el modal
+document.addEventListener('DOMContentLoaded', function() {
+    const addUserModal = document.getElementById('addUserModal');
+    addUserModal.addEventListener('show.bs.modal', function() {
+        clearAddUserForm();
+    });
+});
+
+// Funciones para restringir entrada de caracteres inválidos
+
+// Restringir username: solo letras, números, puntos, guiones y guiones bajos
+function restrictUsername(input) {
+    const cursorPosition = input.selectionStart;
+    const value = input.value;
+    const filteredValue = value.replace(/[^a-zA-Z0-9._-]/g, '');
+    
+    if (value !== filteredValue) {
+        input.value = filteredValue;
+        input.setSelectionRange(cursorPosition - 1, cursorPosition - 1);
+    }
+    validateField(input);
+}
+
+// Restringir nombres: solo letras, espacios y acentos
+function restrictName(input) {
+    const cursorPosition = input.selectionStart;
+    const value = input.value;
+    const filteredValue = value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g, '');
+    
+    if (value !== filteredValue) {
+        input.value = filteredValue;
+        input.setSelectionRange(cursorPosition - 1, cursorPosition - 1);
+    }
+    validateField(input);
+}
+
+// Restringir teléfono: solo números y máximo 9 dígitos
+function restrictPhone(input) {
+    const cursorPosition = input.selectionStart;
+    const value = input.value;
+    let filteredValue = value.replace(/[^0-9]/g, '');
+    
+    // Limitar a 9 dígitos
+    if (filteredValue.length > 9) {
+        filteredValue = filteredValue.substring(0, 9);
+    }
+    
+    if (value !== filteredValue) {
+        input.value = filteredValue;
+        input.setSelectionRange(cursorPosition - (value.length - filteredValue.length), cursorPosition - (value.length - filteredValue.length));
+    }
+    validateField(input);
+}
+
+// Restringir email: permitir caracteres válidos para email
+function restrictEmail(input) {
+    const cursorPosition = input.selectionStart;
+    const value = input.value;
+    // Permitir letras, números, @, ., -, _ y algunos caracteres especiales comunes en emails
+    const filteredValue = value.replace(/[^a-zA-Z0-9@._-]/g, '');
+    
+    if (value !== filteredValue) {
+        input.value = filteredValue;
+        input.setSelectionRange(cursorPosition - 1, cursorPosition - 1);
+    }
+    validateField(input);
+}
+
+// Manejar pegado para username
+function handleUsernamePaste(event) {
+    event.preventDefault();
+    const paste = (event.clipboardData || window.clipboardData).getData('text');
+    const filteredPaste = paste.replace(/[^a-zA-Z0-9._-]/g, '').substring(0, 50);
+    const input = event.target;
+    
+    const start = input.selectionStart;
+    const end = input.selectionEnd;
+    const currentValue = input.value;
+    
+    const newValue = currentValue.substring(0, start) + filteredPaste + currentValue.substring(end);
+    input.value = newValue.substring(0, 50); // Respetar maxlength
+    
+    const newCursorPos = start + filteredPaste.length;
+    input.setSelectionRange(newCursorPos, newCursorPos);
+    validateField(input);
+}
+
+// Manejar pegado para nombres
+function handleNamePaste(event) {
+    event.preventDefault();
+    const paste = (event.clipboardData || window.clipboardData).getData('text');
+    const filteredPaste = paste.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g, '').substring(0, 50);
+    const input = event.target;
+    
+    const start = input.selectionStart;
+    const end = input.selectionEnd;
+    const currentValue = input.value;
+    
+    const newValue = currentValue.substring(0, start) + filteredPaste + currentValue.substring(end);
+    input.value = newValue.substring(0, 50); // Respetar maxlength
+    
+    const newCursorPos = start + filteredPaste.length;
+    input.setSelectionRange(newCursorPos, newCursorPos);
+    validateField(input);
+}
+
+// Manejar pegado para teléfono
+function handlePhonePaste(event) {
+    event.preventDefault();
+    const paste = (event.clipboardData || window.clipboardData).getData('text');
+    const filteredPaste = paste.replace(/[^0-9]/g, '').substring(0, 9);
+    const input = event.target;
+    
+    input.value = filteredPaste; // Reemplazar completamente
+    validateField(input);
+}
+
+// Manejar pegado para email
+function handleEmailPaste(event) {
+    event.preventDefault();
+    const paste = (event.clipboardData || window.clipboardData).getData('text');
+    const filteredPaste = paste.replace(/[^a-zA-Z0-9@._-]/g, '').substring(0, 100);
+    const input = event.target;
+    
+    const start = input.selectionStart;
+    const end = input.selectionEnd;
+    const currentValue = input.value;
+    
+    const newValue = currentValue.substring(0, start) + filteredPaste + currentValue.substring(end);
+    input.value = newValue.substring(0, 100); // Respetar maxlength
+    
+    const newCursorPos = start + filteredPaste.length;
+    input.setSelectionRange(newCursorPos, newCursorPos);
+    validateField(input);
+}
+
+// Función para mostrar/ocultar contraseña
+document.getElementById('togglePassword').addEventListener('click', function() {
+    const passwordInput = document.getElementById('password');
+    const toggleIcon = document.getElementById('togglePasswordIcon');
+    
+    if (passwordInput.type === 'password') {
+        passwordInput.type = 'text';
+        toggleIcon.classList.remove('bi-eye');
+        toggleIcon.classList.add('bi-eye-slash');
+    } else {
+        passwordInput.type = 'password';
+        toggleIcon.classList.remove('bi-eye-slash');
+        toggleIcon.classList.add('bi-eye');
+    }
+});
+
+// Validación en tiempo real
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('addUserForm');
+    const inputs = form.querySelectorAll('input, select');
+    
+    // Agregar evento de validación a cada campo
+    inputs.forEach(input => {
+        input.addEventListener('blur', function() {
+            validateField(this);
+        });
+        
+        input.addEventListener('input', function() {
+            if (this.classList.contains('is-invalid')) {
+                validateField(this);
+            }
+        });
+    });
+    
+    // Validación del formulario al enviar
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        let isValid = true;
+        inputs.forEach(input => {
+            if (!validateField(input)) {
+                isValid = false;
+            }
+        });
+        
+        // Validación especial para especialidad de médicos
+        const role = document.getElementById('role').value;
+        const specialtyId = document.getElementById('specialty_id').value;
+        
+        if (role === 'doctor' && !specialtyId) {
+            const specialtySelect = document.getElementById('specialty_id');
+            specialtySelect.classList.add('is-invalid');
+            isValid = false;
+        }
+        
+        form.classList.add('was-validated');
+        
+        if (isValid) {
+            // Enviar formulario
+            this.submit();
+        } else {
+            // Mostrar mensaje de error
+            const firstInvalidField = form.querySelector('.is-invalid');
+            if (firstInvalidField) {
+                firstInvalidField.focus();
+                firstInvalidField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+    });
+});
+
+// Función para validar campos individuales
+function validateField(field) {
+    const value = field.value.trim();
+    let isValid = true;
+    
+    // Limpiar clases anteriores
+    field.classList.remove('is-valid', 'is-invalid');
+    
+    // Validar campos requeridos
+    if (field.required && !value) {
+        field.classList.add('is-invalid');
+        return false;
+    }
+    
+    // Validaciones específicas por campo
+    switch (field.id) {
+        case 'username':
+            if (value) {
+                const usernameRegex = /^[a-zA-Z0-9._-]+$/;
+                if (!usernameRegex.test(value) || value.length < 3 || value.length > 50) {
+                    field.classList.add('is-invalid');
+                    isValid = false;
+                } else {
+                    field.classList.add('is-valid');
+                }
+            }
+            break;
+            
+        case 'email':
+            if (value) {
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (!emailRegex.test(value)) {
+                    field.classList.add('is-invalid');
+                    isValid = false;
+                } else {
+                    field.classList.add('is-valid');
+                }
+            }
+            break;
+            
+        case 'first_name':
+        case 'last_name':
+            if (value) {
+                const nameRegex = /^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/;
+                if (!nameRegex.test(value) || value.length < 2 || value.length > 50) {
+                    field.classList.add('is-invalid');
+                    isValid = false;
+                } else {
+                    field.classList.add('is-valid');
+                }
+            }
+            break;            case 'phone':
+            if (value) {
+                const phoneRegex = /^[0-9]{9}$/;
+                if (!phoneRegex.test(value)) {
+                    field.classList.add('is-invalid');
+                    isValid = false;
+                } else {
+                    field.classList.add('is-valid');
+                }
+            } else {
+                // Teléfono es opcional, si está vacío es válido
+                field.classList.remove('is-invalid', 'is-valid');
+            }
+            break;
+            
+        case 'password':
+            if (value) {
+                if (value.length < 6) {
+                    field.classList.add('is-invalid');
+                    isValid = false;
+                } else {
+                    field.classList.add('is-valid');
+                }
+            }
+            break;
+            
+        case 'role':
+        case 'specialty_id':
+            if (field.required && value) {
+                field.classList.add('is-valid');
+            } else if (field.required && !value) {
+                field.classList.add('is-invalid');
+                isValid = false;
+            }
+            break;
+    }
+    
+    return isValid;
+}
+
+// Función para generar nombre de usuario automáticamente
+function generateUsername() {
+    const firstName = document.getElementById('first_name').value.trim();
+    const lastName = document.getElementById('last_name').value.trim();
+    
+    if (firstName && lastName) {
+        const username = (firstName.toLowerCase() + '.' + lastName.toLowerCase())
+            .replace(/[^a-zA-Z0-9.-]/g, '')
+            .substring(0, 20);
+        
+        const usernameField = document.getElementById('username');
+        if (!usernameField.value.trim()) {
+            usernameField.value = username;
+            validateField(usernameField);
+        }
+    }
+}
+
+// Agregar event listeners para generar username automáticamente
+document.getElementById('first_name').addEventListener('blur', generateUsername);
+document.getElementById('last_name').addEventListener('blur', generateUsername);
+
+// Validación del formulario de agregar usuario (mantener compatibilidad)
+document.getElementById('addUserForm').addEventListener('submit', function(e) {
+    // Esta validación adicional es para compatibilidad con el código existente
+    const role = document.getElementById('role').value;
+    const specialtyId = document.getElementById('specialty_id').value;
+    
+    // Validar especialidad para médicos
+    if (role === 'doctor' && !specialtyId) {
+        e.preventDefault();
+        const specialtySelect = document.getElementById('specialty_id');
+        specialtySelect.classList.add('is-invalid');
+        specialtySelect.focus();
+        return false;
+    }
+    
+    return true;
+});
+
+// Limpiar formulario cuando se cierre el modal
+document.getElementById('addUserModal').addEventListener('hidden.bs.modal', function() {
+    document.getElementById('addUserForm').reset();
+});
+
+// Generar username automáticamente basado en nombre y apellido
+document.getElementById('first_name').addEventListener('input', generateUsername);
+document.getElementById('last_name').addEventListener('input', generateUsername);
+
+function generateUsername() {
+    const firstName = document.getElementById('first_name').value.trim().toLowerCase();
+    const lastName = document.getElementById('last_name').value.trim().toLowerCase();
+    const usernameField = document.getElementById('username');
+    
+    if (firstName && lastName && !usernameField.value) {
+        // Generar username: primera letra del nombre + apellido completo
+        const username = firstName.charAt(0) + lastName.replace(/\s+/g, '');
+        usernameField.value = username;
+    }
+}
+
+// Función para normalizar texto para búsqueda (eliminar acentos y convertir a minúsculas)
+function normalizeText(text) {
+    return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+}
+
+// Función para mostrar/ocultar mensaje de "sin resultados"
+function toggleNoResultsMessage(show) {
+    let noResultsRow = document.querySelector('#noResultsMessage');
+    
+    if (show) {
+        if (!noResultsRow) {
+            const tbody = document.querySelector('tbody');
+            noResultsRow = document.createElement('tr');
+            noResultsRow.id = 'noResultsMessage';
+            noResultsRow.innerHTML = `
+                <td colspan="9" class="text-center py-4">
+                    <div class="alert alert-warning mb-0">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        No se encontraron usuarios que coincidan con la búsqueda
+                    </div>
+                </td>`;
+            tbody.appendChild(noResultsRow);
+        }
+    } else if (noResultsRow) {
+        noResultsRow.remove();
+    }
+}
+
+// Filtro de búsqueda en tiempo real
+document.getElementById('searchUser').addEventListener('input', function() {
+    filterTable();
+});
+
+// Filtros por rol y estado
+document.getElementById('filterRole').addEventListener('change', filterTable);
+document.getElementById('filterStatus').addEventListener('change', filterTable);
+
+function filterTable() {
+    const searchTerm = document.getElementById('searchUser').value.trim().toLowerCase();
+    const roleFilter = document.getElementById('filterRole').value;
+    const statusFilter = document.getElementById('filterStatus').value;
+    const tableRows = document.querySelectorAll('tbody tr:not(#noResultsMessage)');
+    let hasVisibleRows = false;
+    
+    tableRows.forEach(row => {
+        if (row.id === 'noResultsMessage') return;
+        
+        const text = normalizeText(row.textContent);
+        const role = row.getAttribute('data-role');
+        const statusCell = row.querySelector('td:nth-child(7)').textContent.toLowerCase();
+        
+        // Aplicar filtros
+        const matchesSearch = searchTerm === '' || text.includes(normalizeText(searchTerm));
+        const matchesRole = roleFilter === '' || role === roleFilter;
+        const matchesStatus = statusFilter === '' || 
+                            (statusFilter === 'active' && statusCell.includes('activo')) ||
+                            (statusFilter === 'inactive' && statusCell.includes('inactivo'));
+        
+        if (matchesSearch && matchesRole && matchesStatus) {
+            row.style.display = '';
+            hasVisibleRows = true;
+        } else {
+            row.style.display = 'none';
+        }
+    });
+    
+    // Mostrar mensaje si no hay resultados
+    toggleNoResultsMessage(!hasVisibleRows);
+}
+
+// Función para editar usuario
+function editUser(id, username, email, firstName, lastName, phone, role, specialtyId) {
+    // Configurar la acción del formulario con el ID del usuario
+    const form = document.getElementById('editUserForm');
+    form.action = `{{ url_for('admin.edit_user', user_id=0) }}`.replace('0', id);
+    
+    // Llenar los campos del formulario
+    document.getElementById('editUsername').value = username;
+    document.getElementById('editEmail').value = email;
+    document.getElementById('editFirstName').value = firstName;
+    document.getElementById('editLastName').value = lastName;
+    document.getElementById('editPhone').value = phone;
+    document.getElementById('editRole').value = role;
+    document.getElementById('editSpecialtyId').value = specialtyId;
+    
+    // Mostrar/ocultar campo de especialidad
+    toggleSpecialtyField('edit');
+    
+    // Abrir modal
+    new bootstrap.Modal(document.getElementById('editUserModal')).show();
+}
+
+// Función para alternar estado de usuario
+function toggleUserStatus(userId, activate) {
+    const action = activate ? 'activar' : 'desactivar';
+    
+    if (confirm(`¿Está seguro que desea ${action} este usuario?`)) {
+        fetch(`/admin/users/${userId}/toggle`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify({ activate: activate })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Error al ' + action + ' el usuario: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error al ' + action + ' el usuario');
+        });
+    }
+}
+
+// Función para eliminar usuario
+function deleteUser(userId, username) {
+    if (confirm(`¿Está seguro que desea eliminar el usuario "${username}"?\n\nEsta acción no se puede deshacer.`)) {
+        fetch(`/admin/users/${userId}/delete`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Error al eliminar el usuario: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error al eliminar el usuario');
+        });
+    }
+}
+
+// Función para mostrar/ocultar campo de especialidad
+function toggleSpecialtyField(prefix) {
+    if (prefix) {
+        // Para el modal de editar usuario
+        const role = document.getElementById(prefix + 'Role').value;
+        const specialtyGroup = document.getElementById(prefix + 'SpecialtyGroup');
+        
+        if (role === 'doctor') {
+            specialtyGroup.style.display = 'block';
+        } else {
+            specialtyGroup.style.display = 'none';
+            document.getElementById(prefix + 'SpecialtyId').value = '';
+        }
+    } else {
+        // Para el modal de agregar usuario
+        const role = document.getElementById('role').value;
+        const specialtyRow = document.getElementById('specialtyRow');
+        
+        if (role === 'doctor') {
+            specialtyRow.style.display = 'block';
+            document.getElementById('specialty_id').required = true;
+        } else {
+            specialtyRow.style.display = 'none';
+            document.getElementById('specialty_id').required = false;
+            document.getElementById('specialty_id').value = '';
+        }
+    }
+}
+
+// Función para visualizar detalles del usuario
+function viewUser(id, username, email, firstName, lastName, phone, role, specialty, created, updated, isActive) {
+    // Llenar información personal
+    document.getElementById('viewUserId').textContent = id;
+    document.getElementById('viewUserUsername').textContent = username;
+    document.getElementById('viewUserFullName').textContent = firstName + ' ' + lastName;
+    document.getElementById('viewUserEmail').textContent = email;
+    document.getElementById('viewUserPhone').textContent = phone || 'No especificado';
+    
+    // Llenar información profesional
+    const roleLabels = {
+        'admin': 'Administrador',
+        'doctor': 'Médico',
+        'receptionist': 'Recepcionista',
+        'nurse': 'Enfermera'
+    };
+    
+    document.getElementById('viewUserRole').innerHTML = `<span class="badge ${getRoleBadgeClass(role)}">${roleLabels[role] || role}</span>`;
+    document.getElementById('viewUserSpecialty').textContent = specialty || 'No aplica';
+    document.getElementById('viewUserStatus').innerHTML = `<span class="badge ${isActive ? 'bg-success' : 'bg-secondary'}">${isActive ? 'Activo' : 'Inactivo'}</span>`;
+    
+    // Llenar información del sistema
+    document.getElementById('viewUserCreated').textContent = created;
+    document.getElementById('viewUserUpdated').textContent = updated || 'No actualizado';
+    
+    // Configurar botón de editar
+    document.getElementById('editFromViewBtn').onclick = function() {
+        // Cerrar modal de visualización
+        bootstrap.Modal.getInstance(document.getElementById('viewUserModal')).hide();
+        // Abrir modal de edición
+        editUser(id, username, email, firstName, lastName, phone, role, '');
+    };
+    
+    // Mostrar modal
+    new bootstrap.Modal(document.getElementById('viewUserModal')).show();
+}
+
+// Función auxiliar para obtener la clase CSS del badge del rol
+function getRoleBadgeClass(role) {
+    const classes = {
+        'admin': 'bg-danger',
+        'doctor': 'bg-primary',
+        'receptionist': 'bg-success',
+        'nurse': 'bg-info'
+    };
+    return classes[role] || 'bg-secondary';
+}
+</script>
+
+<!-- Modal para editar usuario -->
+<div class="modal fade" id="editUserModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-pencil"></i> Editar Usuario
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="#" id="editUserForm">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <div class="modal-body">
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="editUsername" class="form-label">Nombre de Usuario</label>
+                                <input type="text" class="form-control" id="editUsername" name="username" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="editEmail" class="form-label">Email</label>
+                                <input type="email" class="form-control" id="editEmail" name="email" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="editFirstName" class="form-label">Nombre</label>
+                                <input type="text" class="form-control" id="editFirstName" name="first_name" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="editLastName" class="form-label">Apellido</label>
+                                <input type="text" class="form-control" id="editLastName" name="last_name" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="editPhone" class="form-label">Teléfono</label>
+                                <input type="text" class="form-control" id="editPhone" name="phone">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="editRole" class="form-label">Rol</label>
+                                <select class="form-select" id="editRole" name="role" required onchange="toggleSpecialtyField('edit')">
+                                    <option value="">Seleccionar rol</option>
+                                    <option value="admin">Administrador</option>
+                                    <option value="doctor">Médico</option>
+                                    <option value="receptionist">Recepcionista</option>
+                                    <option value="nurse">Enfermera</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3" id="editSpecialtyGroup" style="display: none;">
+                        <label for="editSpecialtyId" class="form-label">Especialidad</label>
+                        <select class="form-select" id="editSpecialtyId" name="specialty_id">
+                            <option value="">Seleccionar especialidad</option>
+                            {% for specialty in specialties %}
+                                <option value="{{ specialty.id }}">{{ specialty.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check"></i> Actualizar Usuario
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

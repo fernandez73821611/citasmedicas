@@ -1,0 +1,252 @@
+{% extends "base.html" %}
+
+{% block title %}
+Triage - {{ patient.full_name }} - Sistema de Gestión Médica
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">
+        <i class="bi bi-clipboard-heart"></i>
+        Triage - {{ patient.full_name }}
+    </h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <a href="{{ url_for('doctor.dashboard') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Volver al Dashboard
+            </a>
+            <a href="{{ url_for('doctor.start_consultation', appointment_id=appointment.id) }}" 
+               class="btn btn-primary">
+                <i class="bi bi-play-circle"></i> Iniciar Consulta
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Información del Paciente y Cita -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-person"></i> Información del Paciente
+                </h5>
+            </div>
+            <div class="card-body">
+                <dl class="row">
+                    <dt class="col-sm-4">Nombre:</dt>
+                    <dd class="col-sm-8">{{ patient.full_name }}</dd>
+                    
+                    <dt class="col-sm-4">DNI:</dt>
+                    <dd class="col-sm-8">{{ patient.dni }}</dd>
+                    
+                    <dt class="col-sm-4">Edad:</dt>
+                    <dd class="col-sm-8">{{ patient.age }} años ({{ patient.age_group_label }})</dd>
+                    
+                    <dt class="col-sm-4">Fecha de Nac.:</dt>
+                    <dd class="col-sm-8">{{ patient.birth_date.strftime('%d/%m/%Y') }}</dd>
+                    
+                    <dt class="col-sm-4">Género:</dt>
+                    <dd class="col-sm-8">{{ patient.gender or 'No especificado' }}</dd>
+                    
+                    {% if patient.is_minor %}
+                    <dt class="col-sm-4">Tutor Legal:</dt>
+                    <dd class="col-sm-8">{{ patient.guardian_name or 'No registrado' }}</dd>
+                    {% endif %}
+                </dl>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-calendar-check"></i> Información de la Cita
+                </h5>
+            </div>
+            <div class="card-body">
+                <dl class="row">
+                    <dt class="col-sm-4">Fecha y Hora:</dt>
+                    <dd class="col-sm-8">{{ appointment.date_time.strftime('%d/%m/%Y %H:%M') }}</dd>
+                    
+                    <dt class="col-sm-4">Estado:</dt>
+                    <dd class="col-sm-8">
+                        <span class="badge bg-{{ appointment.status_color }}">{{ appointment.status_label }}</span>
+                    </dd>
+                    
+                    <dt class="col-sm-4">Duración:</dt>
+                    <dd class="col-sm-8">{{ appointment.duration }} minutos</dd>
+                    
+                    <dt class="col-sm-4">Motivo:</dt>
+                    <dd class="col-sm-8">{{ appointment.reason or 'Consulta general' }}</dd>
+                    
+                    <dt class="col-sm-4">Triage por:</dt>
+                    <dd class="col-sm-8">{{ triage.nurse.full_name }}</dd>
+                    
+                    <dt class="col-sm-4">Fecha Triage:</dt>
+                    <dd class="col-sm-8">{{ triage.created_at.strftime('%d/%m/%Y %H:%M') }}</dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Información del Triage -->
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-heart-pulse"></i> Signos Vitales
+                </h5>
+            </div>
+            <div class="card-body">
+                <dl class="row">
+                    {% if triage.blood_pressure %}
+                    <dt class="col-sm-6">Presión Arterial:</dt>
+                    <dd class="col-sm-6">{{ triage.blood_pressure }} mmHg</dd>
+                    {% endif %}
+                    
+                    {% if triage.heart_rate %}
+                    <dt class="col-sm-6">Frecuencia Cardíaca:</dt>
+                    <dd class="col-sm-6">{{ triage.heart_rate }} bpm</dd>
+                    {% endif %}
+                    
+                    {% if triage.temperature %}
+                    <dt class="col-sm-6">Temperatura:</dt>
+                    <dd class="col-sm-6">{{ triage.temperature }}°C</dd>
+                    {% endif %}
+                    
+                    {% if triage.respiratory_rate %}
+                    <dt class="col-sm-6">Freq. Respiratoria:</dt>
+                    <dd class="col-sm-6">{{ triage.respiratory_rate }} rpm</dd>
+                    {% endif %}
+                    
+                    {% if triage.oxygen_saturation %}
+                    <dt class="col-sm-6">Saturación O2:</dt>
+                    <dd class="col-sm-6">{{ triage.oxygen_saturation }}%</dd>
+                    {% endif %}
+                    
+                    {% if triage.weight %}
+                    <dt class="col-sm-6">Peso:</dt>
+                    <dd class="col-sm-6">{{ triage.weight }} kg</dd>
+                    {% endif %}
+                    
+                    {% if triage.height %}
+                    <dt class="col-sm-6">Altura:</dt>
+                    <dd class="col-sm-6">{{ triage.height }} cm</dd>
+                    {% endif %}
+                    
+                    {% if triage.bmi %}
+                    <dt class="col-sm-6">IMC:</dt>
+                    <dd class="col-sm-6">{{ triage.bmi }}</dd>
+                    {% endif %}
+                    
+                    {% if triage.blood_type %}
+                    <dt class="col-sm-6">Tipo de Sangre:</dt>
+                    <dd class="col-sm-6">{{ triage.blood_type }}</dd>
+                    {% endif %}
+                </dl>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-clipboard-data"></i> Evaluación Clínica
+                </h5>
+            </div>
+            <div class="card-body">
+                <dl class="row">
+                    <dt class="col-sm-4">Motivo Principal:</dt>
+                    <dd class="col-sm-8">{{ triage.chief_complaint }}</dd>
+                    
+                    {% if triage.pain_scale %}
+                    <dt class="col-sm-4">Escala de Dolor:</dt>
+                    <dd class="col-sm-8">{{ triage.pain_scale }}/10</dd>
+                    {% endif %}
+                    
+                    <dt class="col-sm-4">Prioridad:</dt>
+                    <dd class="col-sm-8">
+                        <span class="badge bg-{{ triage.priority_color }}">{{ triage.priority_label }}</span>
+                    </dd>
+                    
+                    {% if triage.allergies %}
+                    <dt class="col-sm-4">Alergias:</dt>
+                    <dd class="col-sm-8">{{ triage.allergies }}</dd>
+                    {% endif %}
+                    
+                    {% if triage.current_medications %}
+                    <dt class="col-sm-4">Medicamentos:</dt>
+                    <dd class="col-sm-8">{{ triage.current_medications }}</dd>
+                    {% endif %}
+                </dl>
+                
+                {% if triage.nurse_observations %}
+                <div class="mt-3">
+                    <strong>Observaciones de Enfermería:</strong>
+                    <p class="mt-1">{{ triage.nurse_observations }}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Campos Específicos por Edad (si los hay) -->
+{% if patient.age_group == 'lactante' and (triage.sleep_pattern or triage.irritability or triage.fontanel) %}
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-baby"></i> Evaluación Específica - Lactante
+                </h5>
+            </div>
+            <div class="card-body">
+                <dl class="row">
+                    {% if triage.sleep_pattern %}
+                    <dt class="col-sm-3">Patrón de Sueño:</dt>
+                    <dd class="col-sm-3">{{ triage.sleep_pattern }}</dd>
+                    {% endif %}
+                    
+                    {% if triage.irritability %}
+                    <dt class="col-sm-3">Irritabilidad:</dt>
+                    <dd class="col-sm-3">{{ triage.irritability }}</dd>
+                    {% endif %}
+                    
+                    {% if triage.fontanel %}
+                    <dt class="col-sm-3">Fontanela:</dt>
+                    <dd class="col-sm-3">{{ triage.fontanel }}</dd>
+                    {% endif %}
+                </dl>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Alertas de Signos Vitales Anormales -->
+{% set abnormal_signs = triage.is_vital_signs_abnormal() %}
+{% if abnormal_signs %}
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="alert alert-warning" role="alert">
+            <h5 class="alert-heading">
+                <i class="bi bi-exclamation-triangle"></i> Signos Vitales Anormales Detectados
+            </h5>
+            <p class="mb-0">Los siguientes signos vitales están fuera del rango normal para la edad del paciente:</p>
+            <ul class="mt-2 mb-0">
+                {% for sign in abnormal_signs %}
+                <li>{{ sign.title() }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}

@@ -1,0 +1,29 @@
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="{{ url_for('main.dashboard') }}">
+            <i class="bi bi-hospital"></i> Sistema Médico
+        </a>
+        
+        <!-- Mobile menu toggle for sidebar -->
+        <button class="navbar-toggler d-md-none" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarMenu" aria-controls="sidebarMenu" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        
+        <!-- User menu - visible on all devices -->
+        <div class="d-flex align-items-center">
+            <div class="dropdown">
+                <a class="nav-link dropdown-toggle text-white text-decoration-none" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="bi bi-person-circle"></i> 
+                    <span class="d-none d-sm-inline">{{ current_user.full_name }}</span>
+                    <span class="d-sm-none">{{ current_user.first_name }}</span>
+                    <span class="badge bg-secondary ms-1">{{ current_user.role.title() }}</span>
+                </a>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li><a class="dropdown-item" href="#"><i class="bi bi-person"></i> Mi Perfil</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}"><i class="bi bi-box-arrow-right"></i> Cerrar Sesión</a></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</nav>

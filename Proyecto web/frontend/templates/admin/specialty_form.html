@@ -1,0 +1,287 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} - Sistema Médico{% endblock %}
+
+{% block header %}
+<h1 class="h3 mb-4">{{ title }}</h1>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    {% if specialty %}
+                        Editar Especialidad: {{ specialty.name }}
+                    {% else %}
+                        Nueva Especialidad Médica
+                    {% endif %}
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" class="needs-validation" novalidate>
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <div class="row">
+                        <!-- Nombre de la especialidad -->
+                        <div class="col-md-6 mb-3">
+                            <label for="name" class="form-label">
+                                Nombre de la Especialidad <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   id="name" 
+                                   name="name" 
+                                   value="{{ specialty.name if specialty else '' }}"
+                                   required 
+                                   maxlength="100"
+                                   placeholder="Ej: Cardiología, Pediatría, etc.">
+                            <div class="invalid-feedback">
+                                Por favor ingrese el nombre de la especialidad.
+                            </div>
+                        </div>
+
+                        <!-- Duración de consulta -->
+                        <div class="col-md-6 mb-3">
+                            <label for="consultation_duration" class="form-label">
+                                Duración de Consulta (minutos) <span class="text-danger">*</span>
+                            </label>
+                            <input type="number" 
+                                   class="form-control" 
+                                   id="consultation_duration" 
+                                   name="consultation_duration" 
+                                   value="{{ specialty.consultation_duration if specialty else 30 }}"
+                                   required 
+                                   min="15" 
+                                   max="180"
+                                   step="5">
+                            <div class="invalid-feedback">
+                                Ingrese una duración válida (15-180 minutos).
+                            </div>
+                            <small class="form-text text-muted">
+                                Tiempo estimado por consulta en esta especialidad.
+                            </small>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <!-- Precio base -->
+                        <div class="col-md-6 mb-3">
+                            <label for="base_price" class="form-label">
+                                Precio Base (S/) <span class="text-danger">*</span>
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text">S/</span>
+                                <input type="number" 
+                                       class="form-control" 
+                                       id="base_price" 
+                                       name="base_price" 
+                                       value="{{ '%.2f'|format(specialty.base_price) if specialty else '0.00' }}"
+                                       required 
+                                       min="0.01" 
+                                       step="0.01"
+                                       placeholder="0.00">
+                                <div class="invalid-feedback">
+                                    Ingrese un precio válido mayor a 0.
+                                </div>
+                            </div>
+                            <small class="form-text text-muted">
+                                Precio estándar para consultas de esta especialidad.
+                            </small>
+                        </div>
+
+                        <!-- Estado activo -->
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Estado</label>
+                            <div class="form-check form-switch mt-2">
+                                <input class="form-check-input" 
+                                       type="checkbox" 
+                                       id="is_active" 
+                                       name="is_active" 
+                                       value="1"
+                                       {% if not specialty or specialty.is_active %}checked{% endif %}>
+                                <label class="form-check-label" for="is_active">
+                                    <span class="badge bg-success me-2" id="status-badge-active" {% if specialty and not specialty.is_active %}style="display: none;"{% endif %}>
+                                        <i class="fas fa-check"></i> Activa
+                                    </span>
+                                    <span class="badge bg-secondary" id="status-badge-inactive" {% if not specialty or specialty.is_active %}style="display: none;"{% endif %}>
+                                        <i class="fas fa-times"></i> Inactiva
+                                    </span>
+                                </label>
+                            </div>
+                            <small class="form-text text-muted">
+                                Solo las especialidades activas aparecen en el sistema.
+                            </small>
+                        </div>
+                    </div>
+
+                    <!-- Descripción -->
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Descripción</label>
+                        <textarea class="form-control" 
+                                  id="description" 
+                                  name="description" 
+                                  rows="4" 
+                                  maxlength="500"
+                                  placeholder="Descripción detallada de la especialidad médica...">{{ specialty.description if specialty else '' }}</textarea>
+                        <small class="form-text text-muted">
+                            Descripción opcional de la especialidad (máximo 500 caracteres).
+                        </small>
+                    </div>
+
+                    <!-- Botones de acción -->
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('admin.specialties') }}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Volver
+                        </a>
+                        <div>
+                            {% if specialty %}
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save"></i> Actualizar Especialidad
+                                </button>
+                            {% else %}
+                                <button type="submit" class="btn btn-success">
+                                    <i class="fas fa-plus"></i> Crear Especialidad
+                                </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Panel lateral con información -->
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="fas fa-info-circle"></i> Información
+                </h6>
+            </div>
+            <div class="card-body">
+                <h6>Campos Obligatorios</h6>
+                <ul class="list-unstyled small">
+                    <li><i class="fas fa-check text-success"></i> Nombre de especialidad</li>
+                    <li><i class="fas fa-check text-success"></i> Duración de consulta</li>
+                    <li><i class="fas fa-check text-success"></i> Precio base</li>
+                </ul>
+
+                <hr>
+
+                <h6>Recomendaciones</h6>
+                <ul class="list-unstyled small">
+                    <li><i class="fas fa-lightbulb text-warning"></i> Use nombres descriptivos y únicos</li>
+                    <li><i class="fas fa-lightbulb text-warning"></i> La duración afecta la programación de citas</li>
+                    <li><i class="fas fa-lightbulb text-warning"></i> El precio puede modificarse después</li>
+                </ul>
+
+                {% if specialty %}
+                <hr>
+                <h6>Estadísticas de Uso</h6>
+                <div class="small">
+                    <p class="mb-1">
+                        <strong>Creada:</strong><br>
+                        {{ specialty.created_at.strftime('%d/%m/%Y %H:%M') }}
+                    </p>
+                    <p class="mb-1">
+                        <strong>Estado:</strong>
+                        {% if specialty.is_active %}
+                            <span class="badge bg-success">Activa</span>
+                        {% else %}
+                            <span class="badge bg-secondary">Inactiva</span>
+                        {% endif %}
+                    </p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Panel de preparación para mejoras futuras -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="fas fa-road"></i> Próximas Mejoras
+                </h6>
+            </div>
+            <div class="card-body">
+                <small class="text-muted">
+                    <ul class="list-unstyled">
+                        <li><i class="fas fa-plus-circle text-info"></i> Subespecialidades</li>
+                        <li><i class="fas fa-users text-info"></i> Asignación múltiple por doctor</li>
+                        <li><i class="fas fa-chart-line text-info"></i> Análisis de demanda</li>
+                        <li><i class="fas fa-calendar-alt text-info"></i> Horarios específicos</li>
+                    </ul>
+                </small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Validación del formulario
+    const form = document.querySelector('.needs-validation');
+    
+    form.addEventListener('submit', function(event) {
+        if (!form.checkValidity()) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+        form.classList.add('was-validated');
+    });
+
+    // Control del switch de estado
+    const statusSwitch = document.getElementById('is_active');
+    const activeBadge = document.getElementById('status-badge-active');
+    const inactiveBadge = document.getElementById('status-badge-inactive');
+    
+    statusSwitch.addEventListener('change', function() {
+        if (this.checked) {
+            activeBadge.style.display = 'inline';
+            inactiveBadge.style.display = 'none';
+        } else {
+            activeBadge.style.display = 'none';
+            inactiveBadge.style.display = 'inline';
+        }
+    });
+
+    // Validación en tiempo real del precio
+    const priceInput = document.getElementById('base_price');
+    priceInput.addEventListener('input', function() {
+        const value = parseFloat(this.value);
+        if (value <= 0) {
+            this.setCustomValidity('El precio debe ser mayor a 0');
+        } else {
+            this.setCustomValidity('');
+        }
+    });
+
+    // Contador de caracteres para descripción
+    const descriptionInput = document.getElementById('description');
+    const maxLength = 500;
+    
+    if (descriptionInput) {
+        const counter = document.createElement('small');
+        counter.className = 'form-text text-muted text-end';
+        descriptionInput.parentNode.appendChild(counter);
+        
+        function updateCounter() {
+            const remaining = maxLength - descriptionInput.value.length;
+            counter.textContent = `${remaining} caracteres restantes`;
+            
+            if (remaining < 50) {
+                counter.classList.add('text-warning');
+                counter.classList.remove('text-muted');
+            } else {
+                counter.classList.add('text-muted');
+                counter.classList.remove('text-warning');
+            }
+        }
+        
+        descriptionInput.addEventListener('input', updateCounter);
+        updateCounter(); // Inicializar
+    }
+});
+</script>
+{% endblock %}
